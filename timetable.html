@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thời khóa biểu</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- NAVBAR -->
+  <div id="navbar"></div>
+  <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => document.getElementById("navbar").innerHTML = html);
+  </script>
+  <script type="module" src="nav.js"></script>
+
+  <div class="container">
+    <h1>📅 Thời khóa biểu</h1>
+
+    <!-- Hiển thị cho mọi người -->
+    <div id="display">⏳ Đang tải...</div>
+
+    <!-- Chỉ admin mới thấy -->
+    <div id="adminPanel" style="display:none; margin-top:20px;">
+      <textarea id="tkb" placeholder="Nhập thời khóa biểu..." style="width:100%;height:150px;"></textarea><br>
+
+      <!-- Upload ảnh -->
+      <input type="file" id="fileInput" accept="image/*"><br>
+      <img id="preview" style="max-width:200px;margin-top:10px;display:none;border-radius:10px;">
+      <br>
+
+      <button id="save" style="margin-top:10px;">💾 Lưu</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const CLOUD_NAME = "dmxz0m1x3"; // ⚠️ thay bằng cloud name của mày
+    const UPLOAD_PRESET = "8a1_upload"; // ⚠️ thay bằng upload preset (công khai)
+
+    const display = document.getElementById("display");
+    const tkbDoc = await getDoc(doc(db, "data", "timetable"));
+
+    if (tkbDoc.exists()) {
+      const data = tkbDoc.data();
+      display.innerHTML = `
+        <p>${data.content || "Chưa có dữ liệu."}</p>
+        ${data.image ? `<img src="${data.image}" style="max-width:100%;border-radius:10px;margin-top:10px;">` : ""}
+      `;
+    } else {
+      display.innerText = "Chưa có thời khóa biểu.";
+    }
+
+    // 🔒 Chỉ admin mới được chỉnh sửa
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists() && userDoc.data().role === "admin") {
+        document.getElementById("adminPanel").style.display = "block";
+      }
+
+      let uploadedUrl = null;
+
+      // Xem trước ảnh
+      const fileInput = document.getElementById("fileInput");
+      const preview = document.getElementById("preview");
+      fileInput.onchange = () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      };
+
+      // Upload + lưu dữ liệu
+      document.getElementById("save").onclick = async () => {
+        const content = document.getElementById("tkb").value.trim();
+        const file = fileInput.files[0];
+
+        if (file) {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", UPLOAD_PRESET);
+
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: formData
+          });
+          const data = await res.json();
+          uploadedUrl = data.secure_url;
+        }
+
+        await setDoc(doc(db, "data", "timetable"), { 
+          content,
+          image: uploadedUrl || (tkbDoc.data()?.image || null)
+        });
+
+        alert("✅ Đã lưu thời khóa biểu!");
+        location.reload();
+      };
+    });
+  </script>
+</body>
+</html>

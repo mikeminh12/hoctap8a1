@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Chi tiết bài viết</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ===== COMMENT SECTION ===== */
+    .comments {
+      margin-top: 30px;
+      text-align: left;
+    }
+
+    .comments h2 {
+      color: #34495e;
+      margin-bottom: 15px;
+    }
+
+    .comment {
+      background: #f8f9fa;
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border-left: 4px solid #1abc9c;
+    }
+
+    .comment small {
+      color: #666;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* 🔥 Nút bình luận riêng biệt */
+    .comment-btn {
+      background: #3498db;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+
+    .comment-btn:hover {
+      background: #2176bd;
+    }
+
+    /* Form nhập bình luận */
+    #commentForm {
+      margin-top: 15px;
+    }
+
+    #commentForm textarea {
+      width: 100%;
+      resize: none;
+      height: 80px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    .login-warning {
+      color: #888;
+      background: #f0f0f0;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    /* 🔙 Nút quay lại */
+    .back-btn {
+      display: inline-block;
+      margin-top: 15px;
+      background: #1abc9c;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: 0.2s;
+    }
+
+    .back-btn:hover {
+      background: #16a085;
+    }
+
+    /* 🖼 Style cho ảnh bài viết */
+    .post-image {
+      display: block;
+      margin: 15px auto;
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .post-body {
+      white-space: pre-line;
+      line-height: 1.6;
+      font-size: 17px;
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR IMPORT -->
+  <div id="navbar"></div>
+  <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => document.getElementById("navbar").innerHTML = html);
+  </script>
+
+  <script type="module" src="nav.js"></script>
+
+  <div class="container fade-in">
+    <a href="forum.html" class="back-btn">⬅️ Quay lại diễn đàn</a>
+    <h1 id="postTitle">Đang tải...</h1>
+    <p id="postAuthor" style="color:#777; margin-bottom: 10px;"></p>
+
+    <!-- 🖼️ Hình ảnh bài viết -->
+    <img id="postImage" class="post-image" style="display:none;" alt="Ảnh bài viết">
+
+    <p id="postContent" class="post-body"></p>
+
+    <hr style="margin: 25px 0;">
+
+    <div class="comments">
+      <h2>💬 Bình luận</h2>
+      <div id="commentList"></div>
+
+      <!-- 🔒 Form chỉ hiện khi đăng nhập -->
+      <div id="commentSection"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, auth } from './firebase.js';
+    import { doc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy } 
+      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { onAuthStateChanged } 
+      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+    // ===== Lấy ID bài post =====
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get("id");
+
+    const titleEl = document.getElementById("postTitle");
+    const contentEl = document.getElementById("postContent");
+    const authorEl = document.getElementById("postAuthor");
+    const imageEl = document.getElementById("postImage");
+    const commentSection = document.getElementById("commentSection");
+    const commentList = document.getElementById("commentList");
+
+    // ===== Hiển thị bài viết =====
+    const postRef = doc(db, "posts", postId);
+    const postSnap = await getDoc(postRef);
+    if (postSnap.exists()) {
+      const post = postSnap.data();
+      titleEl.textContent = post.title;
+      contentEl.textContent = post.body;
+      authorEl.textContent = `✍️ Tác giả: ${post.username || "Ẩn danh"}`;
+
+      // ✅ Hiển thị ảnh nếu có
+      if (post.imageUrl && post.imageUrl.trim() !== "") {
+        imageEl.src = post.imageUrl;
+        imageEl.style.display = "block";
+      }
+    } else {
+      titleEl.textContent = "Bài viết không tồn tại 😢";
+    }
+
+    // ===== Load bình luận =====
+    async function loadComments() {
+      const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      commentList.innerHTML = "";
+      snap.forEach(docSnap => {
+        const c = docSnap.data();
+        const time = c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toLocaleString() : "Vừa đăng";
+        commentList.innerHTML += `
+          <div class="comment">
+            <small>👤 ${c.username || "Ẩn danh"} • ${time}</small>
+            <p>${c.text}</p>
+          </div>
+        `;
+      });
+    }
+    await loadComments();
+
+    // ===== Kiểm tra đăng nhập =====
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        commentSection.innerHTML = `
+          <form id="commentForm">
+            <textarea id="commentText" placeholder="Viết bình luận của bạn..."></textarea>
+            <button type="submit" class="comment-btn">Gửi bình luận</button>
+          </form>
+        `;
+
+        const form = document.getElementById("commentForm");
+        form.addEventListener("submit", async e => {
+          e.preventDefault();
+          const text = document.getElementById("commentText").value.trim();
+          if (!text) return;
+          await addDoc(collection(db, "posts", postId, "comments"), {
+            text,
+            username: user.displayName || user.email.split("@")[0],
+            createdAt: serverTimestamp()
+          });
+          form.reset();
+          await loadComments();
+        });
+      } else {
+        commentSection.innerHTML = `
+          <div class="login-warning">
+            ⚠️ Bạn cần <a href="login.html" style="color:#3498db;text-decoration:none;font-weight:500;">đăng nhập</a> để bình luận.
+          </div>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>

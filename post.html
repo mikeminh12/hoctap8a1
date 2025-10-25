@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Đăng bài</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, textarea {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover { background: #0056b3; }
+    img#preview {
+      margin-top: 10px;
+      max-width: 100%;
+      border-radius: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR IMPORT -->
+  <div id="navbar"></div>
+  <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => document.getElementById("navbar").innerHTML = html);
+  </script>
+  <script type="module" src="nav.js"></script>
+
+  <div class="container">
+    <h1>✏️ Đăng bài</h1>
+
+    <input id="title" placeholder="Tiêu đề">
+    <textarea id="body" placeholder="Nội dung" rows="6"></textarea>
+
+    <!-- Nút chọn ảnh -->
+    <input type="file" id="imgUpload" accept="image/*">
+    <img id="preview" alt="Preview">
+
+    <button id="btnPost">Đăng bài</button>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { addDoc, collection } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    // ====== CLOUDINARY CONFIG ======
+    const CLOUD_NAME = "dmxz0m1x3"; // 👉 thay bằng cloud name của bro
+    const UPLOAD_PRESET = "8a1_upload"; // 👉 tên preset đã tạo (unsigned)
+    let uploadedImageUrl = "";
+
+    const imgInput = document.getElementById("imgUpload");
+    const preview = document.getElementById("preview");
+
+    imgInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // hiện preview local
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+
+      // upload lên Cloudinary
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      uploadedImageUrl = data.secure_url;
+      console.log("✅ Ảnh đã upload:", uploadedImageUrl);
+    });
+
+    // ====== FIRESTORE UPLOAD ======
+    const col = collection(db, "posts");
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) return location.href = "login.html";
+
+      document.getElementById("btnPost").onclick = async () => {
+        if (!title.value.trim() || !body.value.trim()) {
+          alert("Nhập tiêu đề và nội dung trước khi đăng!");
+          return;
+        }
+
+        await addDoc(col, {
+          title: title.value,
+          body: body.value,
+          imageUrl: uploadedImageUrl || "",
+          username: user.email.split("@")[0],
+          createdAt: new Date()
+        });
+
+        alert("Đăng bài thành công!");
+        location.href = "forum.html";
+      };
+    });
+  </script>
+</body>
+</html>

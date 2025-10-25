@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Đăng nhập</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- NAVBAR IMPORT -->
+
+<div id="navbar"></div>
+
+<script>
+  fetch("nav.html")
+    .then(res => res.text())
+    .then(html => document.getElementById("navbar").innerHTML = html);
+</script>
+
+<!-- Import nav logic -->
+<script type="module" src="nav.js"></script>
+<div class="container">
+  <!-- Nội dung trang ở đây -->
+   <h2>🔐 Đăng nhập / Đăng ký</h2>
+</div>
+
+  
+
+  <input id="username" placeholder="Tên tài khoản">
+  <input id="password" type="password" placeholder="Mật khẩu">
+  <button id="login">Đăng nhập</button>
+  <button id="signup">Đăng ký</button>
+
+  <script type="module">
+  import { auth, db } from './firebase.js';
+  import { createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+    from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+  import { doc, setDoc } 
+    from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+  const fakeMail = (u) => u + "@study.local";
+
+  // 🔹 Nút đăng ký
+  document.getElementById("signup").onclick = async () => {
+    const u = username.value, p = password.value;
+    const userCred = await createUserWithEmailAndPassword(auth, fakeMail(u), p);
+    await setDoc(doc(db, "users", userCred.user.uid), {
+      username: u, role: "student"
+    });
+
+    // ➕ Sau khi đăng ký xong, lưu user vô localStorage
+    localStorage.setItem("user", JSON.stringify({ username: u }));
+
+    alert("Đăng ký thành công!");
+    location.href = "index.html";
+  };
+
+  // 🔹 Nút đăng nhập
+  document.getElementById("login").onclick = async () => {
+    const u = username.value, p = password.value;
+    await signInWithEmailAndPassword(auth, fakeMail(u), p);
+
+    // 💾 Thêm dòng này để lưu user khi đăng nhập
+    localStorage.setItem("user", JSON.stringify({ username: u }));
+
+    // ➜ Chuyển về trang chủ
+    location.href = "index.html";
+  };
+</script>
+
+</body>
+</html>

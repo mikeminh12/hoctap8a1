@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Tin tức</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .news-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .news-card h3 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+
+    .read-more {
+      display: inline-block;
+      margin-top: 8px;
+      background: #3498db;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: 0.2s;
+    }
+
+    .read-more:hover {
+      background: #2176bd;
+    }
+
+    .news-card small {
+      color: #777;
+      display: block;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <div id="navbar"></div>
+  <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => document.getElementById("navbar").innerHTML = html);
+  </script>
+  <script type="module" src="nav.js"></script>
+
+  <div class="container">
+    <h1>📰 Tin tức</h1>
+
+    <!-- Chỉ admin mới thấy -->
+    <div id="adminPanel" style="display:none;margin-top:15px;">
+      <button id="goPost" style="padding:8px 14px;background:#1abc9c;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+        📝 Đăng tin mới
+      </button>
+    </div>
+
+    <div id="newsList" style="margin-top:20px;">⏳ Đang tải tin...</div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { collection, getDocs, orderBy, query } 
+      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const col = collection(db, "news");
+
+    // 🔥 Load danh sách tin
+    async function loadNews() {
+      const q = query(col, orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const list = document.getElementById("newsList");
+      if (snap.empty) {
+        list.innerHTML = "<p>😶 Chưa có tin nào!</p>";
+        return;
+      }
+      list.innerHTML = "";
+      snap.forEach(docSnap => {
+        const id = docSnap.id;
+        const d = docSnap.data();
+        const shortBody = d.body.length > 150 ? d.body.slice(0, 150) + "..." : d.body;
+
+        list.innerHTML += `
+          <div class="news-card">
+            <h3>${d.title}</h3>
+            <p>${shortBody}</p>
+            <small>🕓 ${d.createdAt?.toDate?.().toLocaleString() || ""}</small>
+            <a href="news-detail.html?id=${id}" class="read-more">👁️ Xem chi tiết</a>
+          </div>
+        `;
+      });
+    }
+
+    loadNews();
+
+    // 🔒 Kiểm tra role
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists() && userDoc.data().role === "admin") {
+        const adminPanel = document.getElementById("adminPanel");
+        adminPanel.style.display = "block";
+        document.getElementById("goPost").onclick = () => {
+          location.href = "post-news.html";
+        };
+      }
+    });
+  </script>
+</body>
+</html>

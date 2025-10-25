@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Diễn đàn học tập</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease;
+    }
+    .card:hover { transform: translateY(-4px); }
+    .card h3 { margin-bottom: 6px; color: #007bff; }
+    .card small { color: #555; font-size: 0.9em; }
+    .card button {
+      margin-top: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .card button:hover { background: #0056b3; }
+
+    /* Nút đăng bài */
+    #postBtn {
+      display: none;
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-bottom: 20px;
+      transition: background 0.2s;
+    }
+    #postBtn:hover { background: #1e7e34; }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR IMPORT -->
+  <div id="navbar"></div>
+
+  <script type="module">
+    // 🔥 Load nav.html trước, rồi mới load nav.js
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
+
+  <div class="container fade-in">
+    <h1>📚 Diễn đàn học tập</h1>
+    <p>Chia sẻ kiến thức, thảo luận bài tập, hỏi đáp học tập tại đây!</p>
+
+    <!-- 🔥 Nút đăng bài -->
+    <button id="postBtn">📝 Đăng bài</button>
+
+    <hr style="margin: 20px 0;">
+    <div id="posts">⏳ Đang tải bài viết...</div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } 
+      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { collection, getDocs, orderBy, query } 
+      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    // 🟢 Hiện nút Đăng bài nếu user đã đăng nhập
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        const btn = document.getElementById("postBtn");
+        btn.style.display = "inline-block";
+        btn.onclick = () => location.href = "post.html";
+      }
+    });
+
+    // 📰 Load bài viết
+    try {
+      const postCol = collection(db, "posts");
+      const q = query(postCol, orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const container = document.getElementById("posts");
+
+      if (snap.empty) {
+        container.innerHTML = "<p>😶 Chưa có bài viết nào, hãy là người đầu tiên đăng nhé!</p>";
+      } else {
+        container.innerHTML = "";
+        snap.forEach(docSnap => {
+          const d = docSnap.data();
+          container.innerHTML += `
+            <div class="card">
+              <h3>${d.title}</h3>
+              <small>✍️ Tác giả: <b>${d.username || "Ẩn danh"}</b></small><br>
+              <button onclick="window.location.href='post-detail.html?id=${docSnap.id}'">
+                Xem chi tiết
+              </button>
+            </div>
+          `;
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById("posts").innerHTML = 
+        "<p style='color:red'>⚠️ Không tải được bài viết. Kiểm tra Firestore rules nhé!</p>";
+    }
+  </script>
+</body>
+</html>

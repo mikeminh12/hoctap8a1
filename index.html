@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Học tập 8A1</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- NAVBAR IMPORT -->
+  <div id="navbar"></div>
+  <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => document.getElementById("navbar").innerHTML = html);
+  </script>
+
+  <!-- Import nav logic -->
+  <script type="module" src="nav.js"></script>
+
+  <!-- 🔹 KHUNG CHÀO MỪNG -->
+  <div class="container">
+    <div id="welcome-card" class="card welcome-card">
+      <h2>👋 Chào mừng đến web học tập của 8A1!</h2>
+    </div>
+  </div>
+
+  <!-- 🔹 TIN TỨC GẦN ĐÂY -->
+  <div class="container">
+    <h2>📰 Tin tức gần đây</h2>
+    <div id="latest-news" class="grid"></div>
+    <div class="center">
+      <button onclick="window.location.href='news.html'">Xem tất cả tin tức</button>
+    </div>
+  </div>
+
+  <!-- 🔹 BÀI ĐĂNG GẦN ĐÂY -->
+  <div class="container">
+    <h2>💬 Bài đăng gần đây</h2>
+    <div id="latest-posts" class="grid"></div>
+    <div class="center">
+      <button onclick="window.location.href='forum.html'">Xem tất cả bài đăng</button>
+    </div>
+  </div>
+
+  <!-- SCRIPT LẤY DỮ LIỆU -->
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { collection, getDocs, orderBy, limit, query } 
+      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const newsContainer = document.getElementById('latest-news');
+    const postContainer = document.getElementById('latest-posts');
+
+    // ✅ Chào mừng user
+    onAuthStateChanged(auth, (user) => {
+      const welcomeCard = document.getElementById("welcome-card");
+      if (user) {
+        welcomeCard.innerHTML = `
+          <h2>👋 Chào mừng <b>${user.displayName || "bạn"}</b> đến cổng học tập 8A1!</h2>
+          <p>Hãy khám phá các bài viết, tin tức và cùng học tập nhé!</p>
+        `;
+      }
+    });
+
+    // ✅ Lấy tin tức gần đây
+    const newsRef = collection(db, "news");
+    const newsQuery = query(newsRef, orderBy("createdAt", "desc"), limit(2));
+    const newsSnap = await getDocs(newsQuery);
+
+    if (newsSnap.empty) {
+      newsContainer.innerHTML = "<p>Không có tin tức nào gần đây.</p>";
+    } else {
+      newsSnap.forEach(doc => {
+        const d = doc.data();
+        newsContainer.innerHTML += `
+          <div class="card">
+            <h3>${d.title}</h3>
+            <small>🗓️ ${new Date(d.createdAt?.toDate?.() || Date.now()).toLocaleString()}</small>
+            <p>${d.body?.substring(0, 100) || ''}...</p>
+            <button onclick="window.location.href='news-detail.html?id=${doc.id}'">Xem chi tiết</button>
+          </div>
+        `;
+      });
+    }
+
+    // ✅ Lấy bài đăng gần đây
+    const postRef = collection(db, "posts");
+    const postQuery = query(postRef, orderBy("createdAt", "desc"), limit(2));
+    const postSnap = await getDocs(postQuery);
+
+    if (postSnap.empty) {
+      postContainer.innerHTML = "<p>Chưa có bài đăng nào.</p>";
+    } else {
+      postSnap.forEach(doc => {
+        const d = doc.data();
+        postContainer.innerHTML += `
+          <div class="card">
+            <h3>${d.title}</h3>
+            <small>✍️ ${d.username}</small>
+            <button onclick="window.location.href='post-detail.html?id=${doc.id}'">Xem chi tiết</button>
+          </div>
+        `;
+      });
+    }
+  </script>
+
+  <!-- STYLE NHẸ NHÀNG -->
+  <style>
+    body {
+      font-family: "Quicksand", sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+  .welcome-card {
+    text-align: center;
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    color: #111; /* 🔥 đổi từ trắng sang đen đậm */
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    backdrop-filter: brightness(1.2);
+    padding: 30px;
+    border-radius: 16px;
+  }
+  .welcome-card h2, .welcome-card p {
+    background: rgba(255, 255, 255, 0.6);
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 10px;
+  }
+
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .center {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+      transform: scale(1.03);
+    }
+
+    .card {
+      background: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</body>
+</html>
