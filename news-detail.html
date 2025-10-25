@@ -4,53 +4,8 @@
   <meta charset="UTF-8">
   <title>Chi tiết tin tức</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    .container {
-      max-width: 800px;
-      margin: 40px auto;
-      background: white;
-      padding: 20px 30px;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.08);
-      text-align: left;
-    }
-
-    h1 {
-      color: #2c3e50;
-      margin-bottom: 10px;
-    }
-
-    .meta {
-      color: #777;
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-
-    .news-img {
-      width: 100%;
-      border-radius: 10px;
-      margin: 20px 0;
-      object-fit: cover;
-    }
-
-    .back-btn {
-      display: inline-block;
-      margin-top: 15px;
-      background: #1abc9c;
-      color: white;
-      padding: 8px 14px;
-      border-radius: 6px;
-      text-decoration: none;
-      transition: 0.2s;
-    }
-
-    .back-btn:hover {
-      background: #16a085;
-    }
-  </style>
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
   <div id="navbar"></div>
 
   <script type="module">
@@ -63,7 +18,7 @@
       });
   </script>
 
-  <div class="container fade-in">
+  <div class="container-detail fade-in">
     <a href="news.html" class="back-btn">⬅️ Quay lại tin tức</a>
     <h1 id="newsTitle">Đang tải...</h1>
     <p class="meta" id="newsMeta"></p>
@@ -75,36 +30,36 @@
     import { db } from './firebase.js';
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-    // 🔎 Lấy ID tin từ URL
-    const params = new URLSearchParams(window.location.search);
-    const newsId = params.get("id");
+    // 🔥 Bọc logic vào hàm IIFE để có thể dùng 'return'
+    (async function loadNewsDetail() {
+        // 🔎 Lấy ID tin từ URL
+        const params = new URLSearchParams(window.location.search);
+        const newsId = params.get("id");
 
-    const titleEl = document.getElementById("newsTitle");
-    const metaEl = document.getElementById("newsMeta");
-    const bodyEl = document.getElementById("newsBody");
-    const imgEl = document.getElementById("newsImage");
+        const titleEl = document.getElementById("newsTitle");
+        const metaEl = document.getElementById("newsMeta");
+        const bodyEl = document.getElementById("newsBody");
+        const imgEl = document.getElementById("newsImage");
 
-    // 🔥 Load chi tiết tin tức
-    async function loadNewsDetail() {
-      const ref = doc(db, "news", newsId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        titleEl.textContent = "Tin tức không tồn tại 😢";
-        return;
-      }
+        // 🔥 Load chi tiết tin tức
+        const ref = doc(db, "news", newsId);
+        const snap = await getDoc(ref);
+        
+        if (!snap.exists()) {
+            titleEl.textContent = "Tin tức không tồn tại 😢";
+            return; // ✅ Return hợp lệ trong hàm async
+        }
 
-      const data = snap.data();
-      titleEl.textContent = data.title;
-      bodyEl.textContent = data.body;
-      metaEl.textContent = `🕓 ${data.createdAt?.toDate?.().toLocaleString() || "Không rõ thời gian"} • 👤 ${data.author || "Ẩn danh"}`;
+        const data = snap.data();
+        titleEl.textContent = data.title;
+        bodyEl.textContent = data.body;
+        metaEl.textContent = "🗓️ " + (data.createdAt?.toDate?.().toLocaleString() || "N/A");
 
-      if (data.imageUrl) {
-        imgEl.src = data.imageUrl;
-        imgEl.style.display = "block";
-      }
-    }
-
-    loadNewsDetail();
+        if (data.imageUrl) {
+            imgEl.src = data.imageUrl;
+            imgEl.style.display = "block";
+        }
+    })();
   </script>
 </body>
 </html>

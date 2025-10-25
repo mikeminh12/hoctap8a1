@@ -4,42 +4,9 @@
   <meta charset="UTF-8">
   <title>Đăng bài</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    .container {
-      max-width: 600px;
-      margin: 40px auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    input, textarea {
-      width: 100%;
-      margin: 8px 0;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    button:hover { background: #0056b3; }
-    img#preview {
-      margin-top: 10px;
-      max-width: 100%;
-      border-radius: 10px;
-      display: none;
-    }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
   <div id="navbar"></div>
 
   <script type="module">
@@ -52,76 +19,162 @@
       });
   </script>
 
-  <div class="container">
-    <h1>✏️ Đăng bài</h1>
+  <div id="toast-container" class="toast-container"></div> 
 
-    <input id="title" placeholder="Tiêu đề">
-    <textarea id="body" placeholder="Nội dung" rows="6"></textarea>
+  <div class="form-container">
+    <h1>📝 Đăng bài mới</h1>
+    <a href="forum.html" class="post-form-link">⬅️ Quay lại diễn đàn</a>
 
-    <!-- Nút chọn ảnh -->
-    <input type="file" id="imgUpload" accept="image/*">
-    <img id="preview" alt="Preview">
+    <input id="title" placeholder="Tiêu đề bài viết">
+    <textarea id="body" placeholder="Nội dung bài viết"></textarea>
+    
+    <label style="display:block;margin-bottom:8px;font-weight:500;">📷 Ảnh minh họa (tùy chọn):</label>
+    <input type="file" id="image" accept="image/*">
+    <img id="preview" alt="Ảnh xem trước">
+    
+    <div id="uploadStatus"></div>
 
-    <button id="btnPost">Đăng bài</button>
+    <button id="btnPost" class="btn-submit">✅ Đăng bài</button>
   </div>
 
   <script type="module">
     import { auth, db } from './firebase.js';
+    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { addDoc, collection } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-    // ====== CLOUDINARY CONFIG ======
-    const CLOUD_NAME = "dmxz0m1x3"; // 👉 thay bằng cloud name của bro
-    const UPLOAD_PRESET = "8a1_upload"; // 👉 tên preset đã tạo (unsigned)
-    let uploadedImageUrl = "";
+    // 🔥 Thay thế bằng thông tin Cloudinary của bạn
+    const CLOUD_NAME = "dmxz0m1x3"; 
+    const UPLOAD_PRESET = "8a1_upload";
 
-    const imgInput = document.getElementById("imgUpload");
+    // 💡 HÀM HIỂN THỊ TOAST 💡
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '';
+        if (type === 'success') {
+            icon = '✅';
+        } else if (type === 'error') {
+            icon = '❌';
+            toast.style.borderLeftColor = '#e74c3c'; 
+        }
+        
+        toast.innerHTML = `<span>${icon}</span> ${message}`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10); 
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => {
+                toast.remove();
+            });
+        }, 3000);
+    }
+    // 💡 KẾT THÚC HÀM TOAST 💡
+
+    const title = document.getElementById("title");
+    const body = document.getElementById("body");
+    const imgInput = document.getElementById("image");
     const preview = document.getElementById("preview");
+    const uploadStatus = document.getElementById("uploadStatus");
+    const btnPost = document.getElementById("btnPost"); // <-- Khai báo nút
+    let uploadedImageUrl = null;
 
+    // ====== CLOUDINARY UPLOAD - ĐÃ FIX LỖI BẤT ĐỒNG BỘ =====
     imgInput.addEventListener("change", async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      
+      if (!file) {
+          preview.style.display = "none";
+          uploadStatus.style.display = "none";
+          uploadedImageUrl = null;
+          return;
+      }
 
-      // hiện preview local
+      // Hiện preview local
       preview.src = URL.createObjectURL(file);
       preview.style.display = "block";
+      uploadStatus.style.display = "block";
+      uploadStatus.textContent = "⏳ Đang tải ảnh lên, vui lòng chờ...";
 
-      // upload lên Cloudinary
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", UPLOAD_PRESET);
+      // 🔥 FIX 1: Tắt nút Đăng bài trong khi Upload
+      btnPost.disabled = true; 
+      
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", UPLOAD_PRESET);
 
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      uploadedImageUrl = data.secure_url;
-      console.log("✅ Ảnh đã upload:", uploadedImageUrl);
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        
+        // Kiểm tra URL từ Cloudinary response
+        if (data.secure_url) {
+            uploadedImageUrl = data.secure_url;
+            uploadStatus.textContent = "✅ Ảnh đã tải lên thành công!";
+            showToast("Tải ảnh lên hoàn tất! Bạn có thể đăng bài.", 'success');
+        } else {
+            // Xử lý lỗi nếu Cloudinary trả về response nhưng không có URL
+            showToast("Lỗi khi tải ảnh lên Cloudinary! Vui lòng thử lại.", 'error'); 
+            uploadStatus.textContent = "❌ Lỗi khi tải ảnh!";
+            uploadedImageUrl = null;
+        }
+
+      } catch (error) {
+        showToast("Lỗi kết nối khi tải ảnh lên!", 'error'); 
+        uploadStatus.textContent = "❌ Lỗi kết nối!";
+        uploadedImageUrl = null;
+      } finally {
+        // 🔥 FIX 2: Mở lại nút Đăng bài sau khi Upload xong (thành công hay thất bại)
+        btnPost.disabled = false; 
+      }
     });
 
-    // ====== FIRESTORE UPLOAD ======
+    // ====== FIRESTORE UPLOAD =====
     const col = collection(db, "posts");
 
     onAuthStateChanged(auth, (user) => {
-      if (!user) return location.href = "login.html";
+      if (!user) {
+        // Chuyển hướng nếu chưa đăng nhập
+        showToast("Bạn cần đăng nhập để đăng bài!", 'error');
+        setTimeout(() => location.href = "login.html", 2000);
+        return;
+      }
 
-      document.getElementById("btnPost").onclick = async () => {
+      btnPost.onclick = async () => {
         if (!title.value.trim() || !body.value.trim()) {
-          alert("Nhập tiêu đề và nội dung trước khi đăng!");
+          showToast("Nhập tiêu đề và nội dung trước khi đăng!", 'error');
           return;
         }
+        
+        // Kiểm tra lần cuối nếu nút bị disable vì đang upload
+        if (btnPost.disabled) {
+             showToast("Vui lòng chờ ảnh tải lên hoàn tất trước khi đăng bài.", 'error');
+             return;
+        }
 
-        await addDoc(col, {
-          title: title.value,
-          body: body.value,
-          imageUrl: uploadedImageUrl || "",
-          username: user.email.split("@")[0],
-          createdAt: new Date()
-        });
+        try {
+          await addDoc(col, {
+            title: title.value,
+            body: body.value,
+            imageUrl: uploadedImageUrl || null, // Vẫn sử dụng biến uploadedImageUrl đã được set
+            username: user.displayName || user.email.split("@")[0],
+            createdAt: serverTimestamp()
+          });
+          
+          showToast("Đăng bài thành công! Chuyển hướng sau 2s...", 'success');
+          setTimeout(() => location.href = "forum.html", 2000);
 
-        alert("Đăng bài thành công!");
-        location.href = "forum.html";
+        } catch (e) {
+            showToast("Đã xảy ra lỗi khi đăng bài: " + e.message, 'error');
+        }
       };
     });
   </script>

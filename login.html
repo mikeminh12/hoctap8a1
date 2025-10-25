@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <title>Đăng nhập</title>
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
+
   <div id="navbar"></div>
 
   <script type="module">
-    // 🔥 Load nav.html trước, rồi mới load nav.js
+    // Load nav.html trước, rồi mới load nav.js
     fetch("nav.html")
       .then(res => res.text())
       .then(html => {
@@ -19,53 +20,113 @@
       });
   </script>
 
-  <!-- Nội dung trang ở đây -->
-   <h2>🔐 Đăng nhập / Đăng ký</h2>
-</div>
-
+  <div id="toast-container" class="toast-container"></div>
   
-
-  <input id="username" placeholder="Tên tài khoản">
-  <input id="password" type="password" placeholder="Mật khẩu">
-  <button id="login">Đăng nhập</button>
-  <button id="signup">Đăng ký</button>
+  <div class="container login-container"> 
+    <h2>🔐 Đăng nhập / Đăng ký</h2>
+    <input id="username" placeholder="Tên tài khoản"> 
+    <input id="password" type="password" placeholder="Mật khẩu">
+    
+    <div class="login-actions">
+        <button id="login" class="btn-login">Đăng nhập</button>
+        <button id="signup" class="btn-signup">Đăng ký</button>
+    </div>
+    
+    <p class="login-footer">
+        Đăng nhập bằng tên tài khoản (không cần email).
+    </p>
+  </div>
 
   <script type="module">
-  import { auth, db } from './firebase.js';
-  import { createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-    from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-  import { doc, setDoc } 
-    from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { auth, db } from './firebase.js';
+    import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-  const fakeMail = (u) => u + "@study.local";
+    // 💡 HÀM HIỂN THỊ TOAST MỚI 💡
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        // Thêm icon
+        let icon = '';
+        if (type === 'success') {
+            icon = '✅';
+        } else if (type === 'error') {
+            icon = '❌';
+            toast.style.borderLeftColor = '#e74c3c'; // Màu đỏ cho lỗi
+        }
+        
+        toast.innerHTML = `<span>${icon}</span> ${message}`;
+        
+        container.appendChild(toast);
 
-  // 🔹 Nút đăng ký
-  document.getElementById("signup").onclick = async () => {
-    const u = username.value, p = password.value;
-    const userCred = await createUserWithEmailAndPassword(auth, fakeMail(u), p);
-    await setDoc(doc(db, "users", userCred.user.uid), {
-      username: u, role: "student"
-    });
+        // Hiển thị toast
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10); // Độ trễ nhỏ để kích hoạt transition
 
-    // ➕ Sau khi đăng ký xong, lưu user vô localStorage
-    localStorage.setItem("user", JSON.stringify({ username: u }));
+        // Tự động ẩn sau 3 giây
+        setTimeout(() => {
+            toast.classList.remove('show');
+            // Xóa phần tử khỏi DOM sau khi ẩn xong
+            toast.addEventListener('transitionend', () => {
+                toast.remove();
+            });
+        }, 3000);
+    }
+    // 💡 KẾT THÚC HÀM TOAST 💡
 
-    alert("Đăng ký thành công!");
-    location.href = "index.html";
-  };
+    const fakeMail = (u) => u + "@study.local";
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
 
-  // 🔹 Nút đăng nhập
-  document.getElementById("login").onclick = async () => {
-    const u = username.value, p = password.value;
-    await signInWithEmailAndPassword(auth, fakeMail(u), p);
+    // Nút đăng ký
+    document.getElementById("signup").onclick = async () => {
+      const u = usernameInput.value.trim();
+      const p = passwordInput.value.trim();
+      if(!u || !p) return showToast("Điền đầy đủ thông tin!", 'error');
+      
+      try {
+        const userCred = await createUserWithEmailAndPassword(auth, fakeMail(u), p);
+        await setDoc(doc(db, "users", userCred.user.uid), {
+          username: u, role: "student"
+        });
 
-    // 💾 Thêm dòng này để lưu user khi đăng nhập
-    localStorage.setItem("user", JSON.stringify({ username: u }));
+        localStorage.setItem("user", JSON.stringify({ username: u }));
+        showToast("Đăng ký thành công! Chuyển hướng sau 2s...", 'success'); // Dùng toast
+        
+        // Chờ 2 giây rồi chuyển trang
+        setTimeout(() => {
+            location.href = "index.html";
+        }, 2000);
+      } catch (err) {
+        showToast("Lỗi đăng ký: " + err.message, 'error'); // Dùng toast
+      }
+    };
 
-    // ➜ Chuyển về trang chủ
-    location.href = "index.html";
-  };
-</script>
+    // Nút đăng nhập (ĐÃ CẬP NHẬT)
+    document.getElementById("login").onclick = async () => {
+      const u = usernameInput.value.trim();
+      const p = passwordInput.value.trim();
+      if(!u || !p) return showToast("Điền đầy đủ thông tin!", 'error');
+      
+      try {
+        await signInWithEmailAndPassword(auth, fakeMail(u), p);
+        localStorage.setItem("user", JSON.stringify({ username: u })); 
+        
+        // 🌟 THAY THẾ ALERT BẰNG TOAST 🌟
+        showToast("Đăng nhập thành công! Chuyển hướng sau 2s...", 'success'); 
 
+        // Chờ 2 giây rồi chuyển trang
+        setTimeout(() => {
+            location.href = "index.html";
+        }, 2000);
+
+      } catch (err) {
+        showToast("Lỗi đăng nhập: Tên tài khoản hoặc mật khẩu không đúng.", 'error'); // Dùng toast
+      }
+    };
+  </script>
 </body>
 </html>

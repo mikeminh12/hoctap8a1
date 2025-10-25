@@ -1,19 +1,65 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Chi tiết bài viết</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    /* ===== COMMENT SECTION ===== */
+  <meta charset="UTF-8">
+  <title>Chi tiết bài viết</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* CSS cho các thành phần bài viết (có thể nằm trong style.css) */
+    .post-image {
+        width: 100%;
+        max-height: 400px; 
+        object-fit: contain;
+        border-radius: 10px;
+        margin: 15px 0;
+        border: 1px solid #eee;
+    }
+    .post-body {
+        white-space: pre-line;
+        line-height: 1.7;
+        font-size: 1.05rem;
+        margin-bottom: 25px;
+    }
+    
+    /* ===== NÚT LIKE (ĐÃ DI CHUYỂN) ===== */
+    #likeSection {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 15px 0 30px 0; /* Tăng khoảng cách dưới nút Like */
+        padding-top: 10px;
+        border-top: 1px solid #eee;
+        border-bottom: 1px solid #eee; /* Thêm đường kẻ dưới Like để phân tách */
+        padding-bottom: 10px;
+    }
+
+    #likeBtn {
+        background: #e74c3c; 
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    #likeBtn.liked {
+        background: #2ecc71; 
+    }
+
+    #likeBtn:hover {
+        opacity: 0.85;
+    }
+    
+    /* ===== COMMENT SECTION (VOTE) ===== */
     .comments {
       margin-top: 30px;
       text-align: left;
-    }
-
-    .comments h2 {
-      color: #34495e;
-      margin-bottom: 15px;
     }
 
     .comment {
@@ -22,6 +68,12 @@
       border-radius: 10px;
       margin-bottom: 10px;
       border-left: 4px solid #1abc9c;
+      display: flex; /* Dùng flex để xếp Vote Box và Comment content */
+      gap: 15px;
+    }
+
+    .comment-content {
+        flex-grow: 1;
     }
 
     .comment small {
@@ -30,198 +82,380 @@
       margin-bottom: 4px;
     }
 
-    /* 🔥 Nút bình luận riêng biệt */
-    .comment-btn {
-      background: #3498db;
-      color: white;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: 0.2s;
+    /* Khung Vote */
+    .vote-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 1rem;
+        color: #777;
+        min-width: 30px; /* Đảm bảo đủ chỗ cho nút */
     }
 
-    .comment-btn:hover {
-      background: #2176bd;
+    .vote-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.3rem;
+        color: #bdc3c7;
+        transition: color 0.2s;
+        padding: 0 5px;
+        line-height: 1;
+    }
+    
+    .vote-btn:hover {
+        color: #3498db;
+    }
+    
+    /* Trạng thái đã vote */
+    .vote-btn.upvoted {
+        color: #2ecc71; /* Xanh lá cho Upvote */
     }
 
-    /* Form nhập bình luận */
-    #commentForm {
-      margin-top: 15px;
-    }
-
-    #commentForm textarea {
-      width: 100%;
-      resize: none;
-      height: 80px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 8px;
-      font-size: 15px;
-      outline: none;
+    .vote-btn.downvoted {
+        color: #e74c3c; /* Đỏ cho Downvote */
     }
 
     .login-warning {
-      color: #888;
-      background: #f0f0f0;
-      border-radius: 8px;
-      padding: 10px;
-      text-align: center;
-    }
-
-    /* 🔙 Nút quay lại */
-    .back-btn {
-      display: inline-block;
-      margin-top: 15px;
-      background: #1abc9c;
-      color: white;
-      padding: 8px 14px;
-      border-radius: 6px;
-      text-decoration: none;
-      transition: 0.2s;
-    }
-
-    .back-btn:hover {
-      background: #16a085;
-    }
-
-    /* 🖼 Style cho ảnh bài viết */
-    .post-image {
-      display: block;
-      margin: 15px auto;
-      max-width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .post-body {
-      white-space: pre-line;
-      line-height: 1.6;
-      font-size: 17px;
+        background: #fef0f0;
+        color: #e74c3c;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px dashed #e74c3c;
+        text-align: center;
+        margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
-  <div id="navbar"></div>
+  <div id="navbar"></div>
 
-  <script type="module">
-    // 🔥 Load nav.html trước, rồi mới load nav.js
-    fetch("nav.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("navbar").innerHTML = html;
-        import('./nav.js');
-      });
-  </script>
+  <script type="module">
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
 
-  <div class="container fade-in">
-    <a href="forum.html" class="back-btn">⬅️ Quay lại diễn đàn</a>
-    <h1 id="postTitle">Đang tải...</h1>
-    <p id="postAuthor" style="color:#777; margin-bottom: 10px;"></p>
+  <div id="toast-container" class="toast-container"></div> 
 
-    <!-- 🖼️ Hình ảnh bài viết -->
-    <img id="postImage" class="post-image" style="display:none;" alt="Ảnh bài viết">
+  <div class="container-detail">
+    <a href="forum.html" class="back-btn">⬅️ Quay lại diễn đàn</a>
+    <h1 id="postTitle">Đang tải...</h1>
+    <p class="meta" id="postMeta"></p>
+    <img id="postImage" class="post-image" style="display:none;">
+    <p id="postBody" class="post-body"></p>
+    
+    <div id="likeSection"></div> 
+    
+    <div class="comments">
+      <h2>💬 Bình luận (<span id="commentCount">0</span>)</h2>
+      <div id="commentSection"></div>       <div id="commentList"></div> </div>
+  </div>
 
-    <p id="postContent" class="post-body"></p>
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { doc, getDoc, collection, getDocs, orderBy, query, addDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
-    <hr style="margin: 25px 0;">
+    // 💡 HÀM HIỂN THỊ TOAST MỚI 💡
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '';
+        if (type === 'success') {
+            icon = '✅';
+        } else if (type === 'error') {
+            icon = '❌';
+            toast.style.borderLeftColor = '#e74c3c'; 
+        } else if (type === 'info') {
+            icon = 'ℹ️';
+            toast.style.borderLeftColor = '#3498db'; 
+        }
+        
+        toast.innerHTML = `<span>${icon}</span> ${message}`;
+        container.appendChild(toast);
 
-    <div class="comments">
-      <h2>💬 Bình luận</h2>
-      <div id="commentList"></div>
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10); 
 
-      <!-- 🔒 Form chỉ hiện khi đăng nhập -->
-      <div id="commentSection"></div>
-    </div>
-  </div>
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => {
+                toast.remove();
+            });
+        }, 3000);
+    }
+    // 💡 KẾT THÚC HÀM TOAST 💡
 
-  <script type="module">
-    import { db, auth } from './firebase.js';
-    import { doc, getDoc, collection, addDoc, serverTimestamp, getDocs, query, orderBy } 
-      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-    import { onAuthStateChanged } 
-      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    // 🔎 Lấy ID bài viết từ URL
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get("id");
 
-    // ===== Lấy ID bài post =====
-    const params = new URLSearchParams(window.location.search);
-    const postId = params.get("id");
+    // Biến DOM
+    const titleEl = document.getElementById("postTitle");
+    const metaEl = document.getElementById("postMeta");
+    const bodyEl = document.getElementById("postBody");
+    const imgEl = document.getElementById("postImage");
+    const commentList = document.getElementById("commentList");
+    const commentCountEl = document.getElementById("commentCount");
+    const commentSection = document.getElementById("commentSection");
+    const likeSection = document.getElementById("likeSection");
+    
+    // Biến toàn cục để lưu dữ liệu bài viết
+    let currentPostData = null;
+    let currentUser = null; // Biến lưu user đã đăng nhập
 
-    const titleEl = document.getElementById("postTitle");
-    const contentEl = document.getElementById("postContent");
-    const authorEl = document.getElementById("postAuthor");
-    const imageEl = document.getElementById("postImage");
-    const commentSection = document.getElementById("commentSection");
-    const commentList = document.getElementById("commentList");
+    // 🔥 HÀM XỬ LÝ LIKE BÀI VIẾT
+    async function toggleLike(user) {
+        if (!user || !currentPostData) return;
+        
+        const postRef = doc(db, "posts", postId);
+        const userId = user.uid;
+        const isLiked = Array.isArray(currentPostData.likes) && currentPostData.likes.includes(userId);
 
-    // ===== Hiển thị bài viết =====
-    const postRef = doc(db, "posts", postId);
-    const postSnap = await getDoc(postRef);
-    if (postSnap.exists()) {
-      const post = postSnap.data();
-      titleEl.textContent = post.title;
-      contentEl.textContent = post.body;
-      authorEl.textContent = `✍️ Tác giả: ${post.username || "Ẩn danh"}`;
+        try {
+            if (isLiked) {
+                await updateDoc(postRef, {
+                    likes: arrayRemove(userId)
+                });
+                showToast("Đã hủy thích bài viết.", 'info');
+            } else {
+                await updateDoc(postRef, {
+                    likes: arrayUnion(userId)
+                });
+                showToast("Đã thích bài viết! ❤️", 'success');
+            }
+            loadPostDetail(user); 
+        } catch(e) {
+            showToast("Lỗi khi xử lý Like: " + e.message, 'error');
+        }
+    }
 
-      // ✅ Hiển thị ảnh nếu có
-      if (post.imageUrl && post.imageUrl.trim() !== "") {
-        imageEl.src = post.imageUrl;
-        imageEl.style.display = "block";
+    // 🔥 HÀM XỬ LÝ VOTE BÌNH LUẬN
+    async function toggleCommentVote(commentId, type) {
+        if (!currentUser) {
+            showToast("Bạn cần đăng nhập để vote bình luận!", 'error');
+            return;
+        }
+
+        const commentRef = doc(db, "posts", postId, "comments", commentId);
+        const userId = currentUser.uid;
+        
+        // 1. Lấy dữ liệu bình luận hiện tại
+        const snap = await getDoc(commentRef);
+        if (!snap.exists()) return;
+        const c = snap.data();
+
+        let upvotes = Array.isArray(c.upvotes) ? c.upvotes : [];
+        let downvotes = Array.isArray(c.downvotes) ? c.downvotes : [];
+
+        // Kiểm tra trạng thái hiện tại
+        const isUpvoted = upvotes.includes(userId);
+        const isDownvoted = downvotes.includes(userId);
+        
+        let updateData = {};
+
+        try {
+            if (type === 'up') {
+                if (isUpvoted) {
+                    // Hủy upvote
+                    updateData.upvotes = arrayRemove(userId);
+                    showToast("Đã hủy Upvote.", 'info');
+                } else {
+                    // Upvote: thêm Upvote, xóa Downvote (nếu có)
+                    updateData.upvotes = arrayUnion(userId);
+                    if (isDownvoted) {
+                        updateData.downvotes = arrayRemove(userId);
+                    }
+                    showToast("Đã Upvote bình luận! 👍", 'success');
+                }
+            } else if (type === 'down') {
+                if (isDownvoted) {
+                    // Hủy downvote
+                    updateData.downvotes = arrayRemove(userId);
+                    showToast("Đã hủy Downvote.", 'info');
+                } else {
+                    // Downvote: thêm Downvote, xóa Upvote (nếu có)
+                    updateData.downvotes = arrayUnion(userId);
+                    if (isUpvoted) {
+                        updateData.upvotes = arrayRemove(userId);
+                    }
+                    showToast("Đã Downvote bình luận! 👎", 'info');
+                }
+            }
+
+            if (Object.keys(updateData).length > 0) {
+                await updateDoc(commentRef, updateData);
+                // Cập nhật giao diện sau khi vote
+                loadComments(); 
+            }
+        } catch(e) {
+            showToast("Lỗi khi xử lý Vote: " + e.message, 'error');
+        }
+    }
+
+    // 🔥 Load chi tiết bài viết (Cho phần Like)
+    async function loadPostDetail(user = null) {
+      const ref = doc(db, "posts", postId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        titleEl.textContent = "Bài viết không tồn tại 😢";
+        return;
+      }
+
+      const data = snap.data();
+      currentPostData = data; 
+      const time = data.createdAt ? data.createdAt.toDate().toLocaleString() : "Vừa đăng";
+      
+      const likes = Array.isArray(data.likes) ? data.likes.length : 0;
+      const isLiked = user && Array.isArray(data.likes) && data.likes.includes(user.uid);
+
+      titleEl.textContent = data.title;
+      bodyEl.textContent = data.body;
+      metaEl.innerHTML = `✍️ Tác giả: <b>${data.username || "Ẩn danh"}</b> • 🕓 ${time}`;
+      
+      if (data.imageUrl) {
+        imgEl.src = data.imageUrl;
+        imgEl.style.display = "block";
+      } else {
+        imgEl.style.display = "none";
       }
-    } else {
-      titleEl.textContent = "Bài viết không tồn tại 😢";
-    }
+        
+    // 🔥 HIỂN THỊ NÚT LIKE
+    let likeHtml = `
+        <span style="font-size:1.1rem;color:#777;">👍 ${likes} Thích</span>
+    `;
 
-    // ===== Load bình luận =====
-    async function loadComments() {
-      const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
-      commentList.innerHTML = "";
-      snap.forEach(docSnap => {
-        const c = docSnap.data();
-        const time = c.createdAt?.seconds ? new Date(c.createdAt.seconds * 1000).toLocaleString() : "Vừa đăng";
-        commentList.innerHTML += `
-          <div class="comment">
-            <small>👤 ${c.username || "Ẩn danh"} • ${time}</small>
-            <p>${c.text}</p>
-          </div>
+    if (user) {
+        const btnClass = isLiked ? 'liked' : '';
+        const btnText = isLiked ? '💚 Đã thích' : '❤️ Thích';
+        likeHtml = `
+            <button id="likeBtn" class="${btnClass}">${btnText}</button>
+            <span style="font-size:1.1rem;color:#777;">👍 ${likes} Thích</span>
         `;
-      });
+    } 
+    likeSection.innerHTML = likeHtml;
+
+    // Gắn sự kiện cho nút Like
+    if (user) {
+        document.getElementById("likeBtn").onclick = () => toggleLike(user);
     }
-    await loadComments();
+    }
 
-    // ===== Kiểm tra đăng nhập =====
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        commentSection.innerHTML = `
-          <form id="commentForm">
-            <textarea id="commentText" placeholder="Viết bình luận của bạn..."></textarea>
-            <button type="submit" class="comment-btn">Gửi bình luận</button>
-          </form>
+    // 🔥 Load bình luận (ĐÃ CẬP NHẬT để hiển thị Vote)
+    async function loadComments() {
+      const col = collection(db, "posts", postId, "comments");
+      // Sắp xếp bình luận theo thời gian tạo, mới nhất lên đầu
+      const q = query(col, orderBy("createdAt", "desc")); 
+      const snap = await getDocs(q);
+      
+      commentCountEl.textContent = snap.size;
+      commentList.innerHTML = "";
+
+      snap.forEach(docSnap => {
+        const c = docSnap.data();
+        const commentId = docSnap.id;
+        const time = c.createdAt && c.createdAt.toDate ? c.createdAt.toDate().toLocaleString() : "Vừa đăng";
+        
+        // Tính toán Vote
+        const upvotes = Array.isArray(c.upvotes) ? c.upvotes.length : 0;
+        const downvotes = Array.isArray(c.downvotes) ? c.downvotes.length : 0;
+        const totalVotes = upvotes - downvotes;
+        
+        // Kiểm tra trạng thái Vote của người dùng hiện tại
+        const userId = currentUser ? currentUser.uid : null;
+        const isUpvoted = userId && Array.isArray(c.upvotes) && c.upvotes.includes(userId);
+        const isDownvoted = userId && Array.isArray(c.downvotes) && c.downvotes.includes(userId);
+        
+        // CSS cho nút Vote
+        const upvoteClass = isUpvoted ? 'upvoted' : '';
+        const downvoteClass = isDownvoted ? 'downvoted' : '';
+
+        // Tạo Vote Box HTML
+        let voteBoxHtml = `
+            <div class="vote-box">
+                <button class="vote-btn up-btn ${upvoteClass}" data-id="${commentId}" data-type="up">▲</button>
+                <span class="vote-count" style="font-weight:600; color:${totalVotes >= 0 ? '#2ecc71' : '#e74c3c'}">${totalVotes}</span>
+                <button class="vote-btn down-btn ${downvoteClass}" data-id="${commentId}" data-type="down">▼</button>
+            </div>
         `;
-
-        const form = document.getElementById("commentForm");
-        form.addEventListener("submit", async e => {
-          e.preventDefault();
-          const text = document.getElementById("commentText").value.trim();
-          if (!text) return;
-          await addDoc(collection(db, "posts", postId, "comments"), {
-            text,
-            username: user.displayName || user.email.split("@")[0],
-            createdAt: serverTimestamp()
+        
+        commentList.innerHTML += `
+          <div class="comment">
+              ${voteBoxHtml}
+              <div class="comment-content">
+                  <small>👤 ${c.username || "Ẩn danh"} • ${time}</small>
+                  <p>${c.text}</p>
+              </div>
+          </div>
+        `;
+      });
+      
+      // Gắn sự kiện Vote sau khi DOM được tạo
+      document.querySelectorAll('.vote-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+              const id = e.currentTarget.dataset.id;
+              const type = e.currentTarget.dataset.type;
+              toggleCommentVote(id, type);
           });
-          form.reset();
-          await loadComments();
-        });
-      } else {
-        commentSection.innerHTML = `
-          <div class="login-warning">
-            ⚠️ Bạn cần <a href="login.html" style="color:#3498db;text-decoration:none;font-weight:500;">đăng nhập</a> để bình luận.
-          </div>
-        `;
-      }
-    });
-  </script>
+      });
+    }
+
+    // Lắng nghe trạng thái đăng nhập
+    onAuthStateChanged(auth, user => {
+        currentUser = user; // Lưu user hiện tại
+        
+        // Gọi loadPostDetail để xử lý trạng thái Like của user
+        loadPostDetail(user); 
+        // Gọi loadComments để xử lý trạng thái Vote của user
+        loadComments();
+
+      if (user) {
+        commentSection.innerHTML = `
+          <form id="commentForm">
+            <textarea id="commentText" placeholder="Viết bình luận của bạn..."></textarea>
+            <button type="submit" class="comment-btn">Gửi bình luận</button>
+          </form>
+        `;
+
+        const form = document.getElementById("commentForm");
+        form.addEventListener("submit", async e => {
+          e.preventDefault();
+          const text = document.getElementById("commentText").value.trim();
+          if (!text) {
+             showToast("Bạn chưa nhập nội dung bình luận!", 'error'); 
+             return;
+          }
+          try {
+             await addDoc(collection(db, "posts", postId, "comments"), {
+                text,
+                username: user.displayName || user.email.split("@")[0],
+                createdAt: serverTimestamp(),
+                // Khởi tạo mảng vote rỗng
+                upvotes: [],
+                downvotes: []
+             });
+             form.reset();
+             await loadComments();
+             showToast("Gửi bình luận thành công!", 'success'); 
+          } catch (e) {
+             showToast("Lỗi khi gửi bình luận: " + e.message, 'error');
+          }
+        });
+      } else {
+        commentSection.innerHTML = `
+          <div class="login-warning">
+            ⚠️ Bạn cần <a href="login.html" style="color:#3498db;text-decoration:underline;">Đăng nhập</a> để bình luận và vote!
+          </div>
+        `;
+      }
+    });
+</script>
 </body>
 </html>

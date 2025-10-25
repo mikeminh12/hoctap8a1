@@ -1,115 +1,263 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Thời khóa biểu</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Thời khóa biểu</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Style riêng cho nút xóa dữ liệu admin */
+    #delete-btn {
+        background: #e74c3c !important; /* Đỏ */
+        box-shadow: 0 4px 6px rgba(231, 76, 60, 0.3) !important;
+        margin-left: 10px;
+    }
+    #delete-btn:hover {
+        background: #c0392b !important;
+        box-shadow: 0 6px 10px rgba(231, 76, 60, 0.4) !important;
+    }
+    /* Khung hiển thị TKB dạng văn bản */
+    .tkb-content-box {
+        white-space: pre-line; 
+        line-height: 1.8; 
+        font-size: 1.05rem; 
+        background: #fff; 
+        padding: 20px; 
+        border-radius: var(--border-radius-md); 
+        border: 1px solid var(--color-border);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    /* 🔥 Ảnh TKB (Hiển thị) - Đã FIX tràn khung */
+    #display img {
+        **display: block;**
+        **width: 100%;**         **height: auto;**         border-radius: var(--border-radius-md); 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        border: 1px solid var(--color-border);
+    }
+    /* Ảnh Preview (Admin Panel) */
+    #preview {
+        max-width: 300px; /* Giới hạn chiều rộng vừa phải cho khu vực admin */
+        width: 100%;
+        height: auto;
+        margin-top: 10px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+    }
+  </style>
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
-  <div id="navbar"></div>
+  <div id="navbar"></div>
 
-  <script type="module">
-    // 🔥 Load nav.html trước, rồi mới load nav.js
-    fetch("nav.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("navbar").innerHTML = html;
-        import('./nav.js');
-      });
-  </script>
+  <script type="module">
+    // 🔥 Load nav.html trước, rồi mới load nav.js
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
 
-  <div class="container">
-    <h1>📅 Thời khóa biểu</h1>
+  <div id="toast-container" class="toast-container"></div> 
 
-    <!-- Hiển thị cho mọi người -->
-    <div id="display">⏳ Đang tải...</div>
+  <div class="container"> 
+    <h1>📅 Thời khóa biểu</h1>
 
-    <!-- Chỉ admin mới thấy -->
-    <div id="adminPanel" style="display:none; margin-top:20px;">
-      <textarea id="tkb" placeholder="Nhập thời khóa biểu..." style="width:100%;height:150px;"></textarea><br>
+    <div id="display">⏳ Đang tải...</div>
 
-      <!-- Upload ảnh -->
-      <input type="file" id="fileInput" accept="image/*"><br>
-      <img id="preview" style="max-width:200px;margin-top:10px;display:none;border-radius:10px;">
-      <br>
+    <div id="adminPanel" style="display:none; margin-top:20px;">
+      <hr>
+      <p style="font-weight: 600;">Panel quản lý (Admin)</p>
+      
+      <textarea id="tkb" placeholder="Nhập thời khóa biểu..."></textarea>
+      
+      <label style="display:block;margin-bottom:8px;font-weight:500;">📷 Ảnh thời khóa biểu (ưu tiên ảnh):</label>
+      
+      <input type="file" id="fileInput" accept="image/*">
+      
+      <img id="preview" style="display:none;" alt="Ảnh xem trước TKB">
+      <br>
 
-      <button id="save" style="margin-top:10px;">💾 Lưu</button>
-    </div>
-  </div>
+      <button id="save">💾 Lưu Thời Khóa Biểu</button> 
+      <button id="delete-btn">❌ Xóa Dữ Liệu TKB</button>
+    </div>
+  </div>
 
-  <script type="module">
-    import { auth, db } from './firebase.js';
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+  <script type="module">
+    import { db, auth } from './firebase.js';
+    import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    
+    // 🔥 Thay thế bằng thông tin Cloudinary của bạn
+    const CLOUD_NAME = "dmxz0m1x3"; 
+    const UPLOAD_PRESET = "8a1_upload";
 
-    const CLOUD_NAME = "dmxz0m1x3"; // ⚠️ thay bằng cloud name của mày
-    const UPLOAD_PRESET = "8a1_upload"; // ⚠️ thay bằng upload preset (công khai)
+    // 💡 HÀM HIỂN THỊ TOAST MỚI 💡
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '';
+        if (type === 'success') {
+            icon = '✅';
+        } else if (type === 'error') {
+            icon = '❌';
+            toast.style.borderLeftColor = '#e74c3c'; 
+        } else if (type === 'info') {
+            icon = 'ℹ️';
+            toast.style.borderLeftColor = '#3498db'; 
+        }
+        
+        toast.innerHTML = `<span>${icon}</span> ${message}`;
+        container.appendChild(toast);
 
-    const display = document.getElementById("display");
-    const tkbDoc = await getDoc(doc(db, "data", "timetable"));
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10); 
 
-    if (tkbDoc.exists()) {
-      const data = tkbDoc.data();
-      display.innerHTML = `
-        <p>${data.content || "Chưa có dữ liệu."}</p>
-        ${data.image ? `<img src="${data.image}" style="max-width:100%;border-radius:10px;margin-top:10px;">` : ""}
-      `;
-    } else {
-      display.innerText = "Chưa có thời khóa biểu.";
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => {
+                toast.remove();
+            });
+        }, 3000);
     }
+    // 💡 KẾT THÚC HÀM TOAST 💡
+    
+    // 🔥 Load TKB
+    async function loadTimetable() {
+      const docRef = doc(db, "data", "timetable");
+      const docSnap = await getDoc(docRef);
+      const displayEl = document.getElementById("display");
 
-    // 🔒 Chỉ admin mới được chỉnh sửa
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists() && userDoc.data().role === "admin") {
-        document.getElementById("adminPanel").style.display = "block";
-      }
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.image) {
+          displayEl.innerHTML = `<img src="${data.image}" alt="Thời khóa biểu">`;
+        } else if (data.content) {
+          // Dùng class mới cho khung TKB dạng text
+          displayEl.innerHTML = `<div class="tkb-content-box">${data.content}</div>`;
+        } else {
+           displayEl.innerHTML = "<p>Chưa có thời khóa biểu được cập nhật!</p>";
+        }
+      } else {
+        displayEl.innerHTML = "<p>Chưa có thời khóa biểu được cập nhật!</p>";
+      }
+    }
 
-      let uploadedUrl = null;
+    loadTimetable();
 
-      // Xem trước ảnh
-      const fileInput = document.getElementById("fileInput");
-      const preview = document.getElementById("preview");
-      fileInput.onchange = () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-          preview.src = e.target.result;
-          preview.style.display = "block";
-        };
-        reader.readAsDataURL(file);
-      };
+    // ===== ADMIN PANEL LOGIC =====
+    let tkbData = null; // Cache data
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
 
-      // Upload + lưu dữ liệu
-      document.getElementById("save").onclick = async () => {
-        const content = document.getElementById("tkb").value.trim();
-        const file = fileInput.files[0];
+      // 🔒 Kiểm tra quyền admin
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists() && userDoc.data().role === "admin") {
+        document.getElementById("adminPanel").style.display = "block";
+      } else {
+        return; // Không phải admin thì dừng
+      }
 
-        if (file) {
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("upload_preset", UPLOAD_PRESET);
+      // Load data vào admin panel
+      const tkbRef = doc(db, "data", "timetable");
+      const tkbSnap = await getDoc(tkbRef);
+      if (tkbSnap.exists()) {
+        tkbData = tkbSnap.data();
+        document.getElementById("tkb").value = tkbData.content || "";
+        if (tkbData.image) {
+          document.getElementById("preview").src = tkbData.image;
+          document.getElementById("preview").style.display = "block";
+        }
+      }
 
-          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-            method: "POST",
-            body: formData
-          });
-          const data = await res.json();
-          uploadedUrl = data.secure_url;
+      let uploadedUrl = null;
+
+      // Xem trước ảnh
+      const fileInput = document.getElementById("fileInput");
+      const preview = document.getElementById("preview");
+      fileInput.onchange = () => {
+        const file = fileInput.files[0];
+        if (!file) {
+            preview.style.display = "none";
+            preview.src = "";
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = e => {
+          preview.src = e.target.result;
+          preview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      };
+
+      // Upload + lưu dữ liệu
+      document.getElementById("save").onclick = async () => {
+        const content = document.getElementById("tkb").value.trim();
+        const file = fileInput.files[0];
+        
+        // Cảnh báo nếu không có nội dung/ảnh
+        if (!content && !file && (!tkbData || (!tkbData.content && !tkbData.image))) {
+             showToast("Vui lòng nhập nội dung hoặc chọn ảnh để lưu.", 'error');
+             return;
         }
 
-        await setDoc(doc(db, "data", "timetable"), { 
-          content,
-          image: uploadedUrl || (tkbDoc.data()?.image || null)
-        });
+        // 1. Kiểm tra nếu có file mới
+        if (file) {
+          showToast("⏳ Đang tải ảnh lên Cloudinary, vui lòng chờ...", 'info');
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", UPLOAD_PRESET);
+          
+          try {
+          	 const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+                method: "POST",
+                body: formData
+              });
+              const data = await res.json();
+              uploadedUrl = data.secure_url;
+              showToast("✅ Tải ảnh lên thành công!", 'success');
+          } catch(e) {
+              showToast("❌ Lỗi khi tải ảnh lên Cloudinary! Ảnh sẽ không được lưu.", 'error');
+              return;
+          }
+        }
 
-        alert("✅ Đã lưu thời khóa biểu!");
-        location.reload();
-      };
-    });
-  </script>
+        // 2. Lưu dữ liệu lên Firestore
+        await setDoc(doc(db, "data", "timetable"), { 
+          content,
+          // Ưu tiên ảnh mới, nếu không có thì giữ ảnh cũ (nếu có)
+          image: uploadedUrl || (tkbData ? tkbData.image : null),
+          updatedAt: new Date()
+        });
+        showToast("💾 Lưu Thời Khóa Biểu thành công!", 'success');
+        loadTimetable();
+        // Cập nhật lại cache sau khi lưu thành công
+        tkbData = { content, image: uploadedUrl || (tkbData ? tkbData.image : null) };
+        uploadedUrl = null; // Reset biến upload
+      };
+
+      // Nút xóa dữ liệu
+      document.getElementById("delete-btn").onclick = async () => {
+          // Giữ confirm vì đây là thao tác quan trọng, cần chặn người dùng
+          if (confirm("⚠️ Bạn có chắc chắn muốn XÓA toàn bộ dữ liệu thời khóa biểu? Thao tác này không thể hoàn tác.")) { 
+              await setDoc(doc(db, "data", "timetable"), { 
+                  content: null,
+                  image: null,
+                  updatedAt: new Date()
+              });
+              document.getElementById("tkb").value = "";
+              document.getElementById("preview").style.display = "none";
+              document.getElementById("preview").src = "";
+              fileInput.value = "";
+              tkbData = {}; // Reset cache
+              showToast("🗑️ Đã xóa dữ liệu thời khóa biểu!", 'success');
+              loadTimetable();
+          }
+      };
+
+    });
+  </script>
 </body>
 </html>

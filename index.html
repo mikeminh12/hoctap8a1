@@ -6,27 +6,63 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
   <div id="navbar"></div>
 
   <script type="module">
-    // 🔥 Load nav.html trước, rồi mới load nav.js
     fetch("nav.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("navbar").innerHTML = html;
-        import('./nav.js');
-      });
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+        
+        // 🔥 DARK MODE LOGIC START 🔥
+        const body = document.body;
+        // Dùng setTimeout để đảm bảo nút đã được render trong nav.html
+        setTimeout(() => { 
+            const toggleBtn = document.getElementById('theme-toggle-btn');
+            if (!toggleBtn) return; 
+            
+            const THEME_KEY = 'themePreference';
+
+            function applyTheme(theme) {
+                if (theme === 'dark') {
+                    body.classList.add('dark-mode');
+                    toggleBtn.textContent = '☀️'; // Icon sáng
+                    localStorage.setItem(THEME_KEY, 'dark');
+                } else {
+                    body.classList.remove('dark-mode');
+                    toggleBtn.textContent = '🌙'; // Icon tối
+                    localStorage.setItem(THEME_KEY, 'light');
+                }
+            }
+
+            // 1. Tải chủ đề đã lưu
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            if (savedTheme) {
+                applyTheme(savedTheme);
+            } else {
+                // Mặc định theo hệ thống nếu không có lưu trữ
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                applyTheme(prefersDark ? 'dark' : 'light');
+            }
+
+            // 2. Thêm sự kiện chuyển đổi
+            toggleBtn.addEventListener('click', () => {
+                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                applyTheme(newTheme);
+            });
+        }, 100); // Dùng setTimeout nhỏ để đảm bảo DOM button đã sẵn sàng
+        // 🔥 DARK MODE LOGIC END 🔥
+      });
   </script>
 
-  <!-- 🔹 KHUNG CHÀO MỪNG -->
   <div class="container">
-    <div id="welcome-card" class="card welcome-card">
+    <div id="welcome-card" class="welcome-card">
       <h2>👋 Chào mừng đến web học tập của 8A1!</h2>
     </div>
   </div>
 
-  <!-- 🔹 TIN TỨC GẦN ĐÂY -->
   <div class="container">
     <h2>📰 Tin tức gần đây</h2>
     <div id="latest-news" class="grid"></div>
@@ -35,7 +71,6 @@
     </div>
   </div>
 
-  <!-- 🔹 BÀI ĐĂNG GẦN ĐÂY -->
   <div class="container">
     <h2>💬 Bài đăng gần đây</h2>
     <div id="latest-posts" class="grid"></div>
@@ -44,8 +79,8 @@
     </div>
   </div>
 
-  <!-- SCRIPT LẤY DỮ LIỆU -->
   <script type="module">
+    // (Giữ nguyên script)
     import { auth, db } from './firebase.js';
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import { collection, getDocs, orderBy, limit, query } 
@@ -80,7 +115,7 @@
             <h3>${d.title}</h3>
             <small>🗓️ ${new Date(d.createdAt?.toDate?.() || Date.now()).toLocaleString()}</small>
             <p>${d.body?.substring(0, 100) || ''}...</p>
-            <button onclick="window.location.href='news-detail.html?id=${doc.id}'">Xem chi tiết</button>
+            <button class="btn-card" onclick="window.location.href='news-detail.html?id=${doc.id}'">Xem chi tiết</button>
           </div>
         `;
       });
@@ -100,78 +135,11 @@
           <div class="card">
             <h3>${d.title}</h3>
             <small>✍️ ${d.username}</small>
-            <button onclick="window.location.href='post-detail.html?id=${doc.id}'">Xem chi tiết</button>
+            <button class="btn-card" onclick="window.location.href='post-detail.html?id=${doc.id}'">Xem chi tiết</button>
           </div>
         `;
       });
     }
   </script>
-
-  <!-- STYLE NHẸ NHÀNG -->
-  <style>
-    body {
-      font-family: "Quicksand", sans-serif;
-      background: #f1f5f9;
-      margin: 0;
-      padding: 0;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 20px;
-    }
-
-  .welcome-card {
-    text-align: center;
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
-    color: #111; /* 🔥 đổi từ trắng sang đen đậm */
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
-    backdrop-filter: brightness(1.2);
-    padding: 30px;
-    border-radius: 16px;
-  }
-  .welcome-card h2, .welcome-card p {
-    background: rgba(255, 255, 255, 0.6);
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 10px;
-  }
-
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .center {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 16px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    button:hover {
-      background: #1d4ed8;
-      transform: scale(1.03);
-    }
-
-    .card {
-      background: #fff;
-      padding: 16px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-  </style>
 </body>
 </html>

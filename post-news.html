@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <title>Đăng tin mới</title>
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- NAVBAR IMPORT -->
   <div id="navbar"></div>
 
   <script type="module">
@@ -19,90 +19,138 @@
       });
   </script>
 
-  <div class="container">
+  <div id="toast-container" class="toast-container"></div> 
+
+  <div class="form-container">
     <h1>📝 Đăng tin mới</h1>
-    <a href="news.html" style="display:inline-block;margin-bottom:10px;color:#1abc9c;">⬅️ Quay lại danh sách tin</a>
+    <a href="news.html" class="post-form-link">⬅️ Quay lại danh sách tin</a>
 
-    <input id="title" placeholder="Tiêu đề" style="width:100%;margin-bottom:10px;">
-    <textarea id="body" placeholder="Nội dung" style="width:100%;height:100px;margin-bottom:10px;"></textarea>
+    <input id="title" placeholder="Tiêu đề">
+    <textarea id="body" placeholder="Nội dung"></textarea>
 
-    <label style="display:block;margin-bottom:8px;">📷 Ảnh minh họa (tùy chọn):</label>
-    <input type="file" id="image" accept="image/*" style="margin-bottom:15px;">
-    <img id="preview" style="max-width:100%;border-radius:10px;display:none;margin-bottom:15px;">
-    <p id="uploadStatus" style="color:#888;display:none;">⏳ Đang tải ảnh lên...</p>
+    <label style="display:block;margin-bottom:8px;font-weight:500;">📷 Ảnh minh họa (tùy chọn):</label>
+    <input type="file" id="image" accept="image/*">
+    <img id="preview" alt="Ảnh xem trước">
+    <div id="uploadStatus"></div>
 
-    <button id="post" style="background:#3498db;color:white;padding:10px 18px;border:none;border-radius:6px;cursor:pointer;">🚀 Đăng tin</button>
+    <button id="post" class="btn-submit">✅ Đăng tin</button>
   </div>
 
   <script type="module">
     import { auth, db } from './firebase.js';
+    import { collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { addDoc, collection, serverTimestamp } 
-      from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-    const CLOUD_NAME = "dmxz0m1x3"; // 👈 sửa thành cloud name của bro
-    const UPLOAD_PRESET = "8a1_upload"; // 👈 sửa theo preset tạo bên Cloudinary
+    // 🔥 Thay thế bằng thông tin Cloudinary của bạn
+    const CLOUD_NAME = "dmxz0m1x3"; 
+    const UPLOAD_PRESET = "8a1_upload";
+
+    // 💡 HÀM HIỂN THỊ TOAST MỚI 💡
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '';
+        if (type === 'success') {
+            icon = '✅';
+        } else if (type === 'error') {
+            icon = '❌';
+            toast.style.borderLeftColor = '#e74c3c'; 
+        }
+        
+        toast.innerHTML = `<span>${icon}</span> ${message}`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10); 
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => {
+                toast.remove();
+            });
+        }, 3000);
+    }
+    // 💡 KẾT THÚC HÀM TOAST 💡
 
     const col = collection(db, "news");
-    let imageUrl = "";
-
     const imgInput = document.getElementById("image");
     const preview = document.getElementById("preview");
     const uploadStatus = document.getElementById("uploadStatus");
+    let imageUrl = null;
 
-    // 🖼 Xem trước + upload lên Cloudinary
+    // ====== CLOUDINARY UPLOAD =====
     imgInput.addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      preview.style.display = "block";
       preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
       uploadStatus.style.display = "block";
+      uploadStatus.textContent = "⏳ Đang tải ảnh lên...";
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", UPLOAD_PRESET);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", UPLOAD_PRESET);
 
-      // ⏫ Upload lên Cloudinary
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
 
-      if (data.secure_url) {
-        imageUrl = data.secure_url;
-        uploadStatus.textContent = "✅ Ảnh đã tải lên thành công!";
-      } else {
-        uploadStatus.textContent = "❌ Lỗi khi tải ảnh!";
+        if (data.secure_url) {
+          imageUrl = data.secure_url;
+          uploadStatus.textContent = "✅ Ảnh đã tải lên thành công!";
+        } else {
+          showToast("Lỗi khi tải ảnh lên Cloudinary!", 'error');
+          uploadStatus.textContent = "❌ Lỗi khi tải ảnh!";
+        }
+      } catch (error) {
+        showToast("Lỗi kết nối khi tải ảnh lên!", 'error');
+        uploadStatus.textContent = "❌ Lỗi kết nối!";
       }
     });
 
     // 🔒 Chỉ admin mới được đăng tin
     onAuthStateChanged(auth, async (user) => {
-      if (!user) return location.href = "login.html";
+      if (!user) {
+        showToast("Bạn cần đăng nhập để truy cập!", 'error');
+        setTimeout(() => location.href = "login.html", 2000);
+        return;
+      }
+      
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (!userDoc.exists() || userDoc.data().role !== "admin") {
-        alert("❌ Bạn không có quyền truy cập trang này!");
-        return location.href = "news.html";
+        showToast("❌ Bạn không có quyền truy cập trang này!", 'error'); // Dùng toast
+        setTimeout(() => location.href = "news.html", 2000);
+        return;
       }
 
       document.getElementById("post").onclick = async () => {
         const title = document.getElementById("title").value.trim();
         const body = document.getElementById("body").value.trim();
-        if (!title || !body) return alert("⚠️ Nhập đầy đủ tiêu đề và nội dung!");
+        if (!title || !body) {
+             showToast("⚠️ Nhập đầy đủ tiêu đề và nội dung!", 'error'); // Dùng toast
+             return;
+        }
 
-        await addDoc(col, { 
-          title, 
-          body, 
-          imageUrl, 
-          author: user.email || "Admin",
-          createdAt: serverTimestamp() 
-        });
+        try {
+            await addDoc(col, { 
+              title, 
+              body, 
+              imageUrl: imageUrl || null,
+              createdAt: serverTimestamp()
+            });
 
-        alert("✅ Đăng tin thành công!");
-        location.href = "news.html";
+            showToast("Đăng tin thành công! Chuyển hướng sau 2s...", 'success'); // Dùng toast
+            setTimeout(() => location.href = "news.html", 2000);
+        } catch (e) {
+             showToast("Đã xảy ra lỗi khi đăng tin: " + e.message, 'error');
+        }
       };
     });
   </script>
