@@ -42,14 +42,18 @@
   </style>
 </head>
 <body>
-  <!-- NAVBAR -->
+  <!-- NAVBAR IMPORT -->
   <div id="navbar"></div>
-  <script>
+
+  <script type="module">
+    // 🔥 Load nav.html trước, rồi mới load nav.js
     fetch("nav.html")
       .then(res => res.text())
-      .then(html => document.getElementById("navbar").innerHTML = html);
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
   </script>
-  <script type="module" src="nav.js"></script>
 
   <div class="container">
     <h1>📰 Tin tức</h1>

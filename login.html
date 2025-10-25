@@ -7,18 +7,18 @@
 </head>
 <body>
   <!-- NAVBAR IMPORT -->
+  <div id="navbar"></div>
 
-<div id="navbar"></div>
+  <script type="module">
+    // 🔥 Load nav.html trước, rồi mới load nav.js
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
 
-<script>
-  fetch("nav.html")
-    .then(res => res.text())
-    .then(html => document.getElementById("navbar").innerHTML = html);
-</script>
-
-<!-- Import nav logic -->
-<script type="module" src="nav.js"></script>
-<div class="container">
   <!-- Nội dung trang ở đây -->
    <h2>🔐 Đăng nhập / Đăng ký</h2>
 </div>
