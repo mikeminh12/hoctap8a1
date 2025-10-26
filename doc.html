@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tài liệu Học tập</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <script type="module">
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
+
+  <div class="container doc-main-container">
+    <h1>📚 Quản lý & Xem Tài liệu</h1>
+    
+    <div id="adminView" class="doc-layout-admin" style="display: none;">
+      <div class="folder-panel">
+        <div id="adminControls">
+          <h4>🛠️ Công cụ Admin</h4>
+          <div class="admin-section">
+            <strong>+ Thêm Thư mục mới</strong>
+            <input type="text" id="newFolderName" placeholder="Tên thư mục mới" class="input-full-width">
+            <button id="addFolderBtn" class="btn-submit btn-full-width">Tạo Thư mục</button>
+          </div>
+          <hr>
+          <div class="admin-section">
+            <strong>⬆️ Tải tệp lên</strong>
+            <input type="file" id="fileInput" accept="*" class="input-file">
+            <span id="uploadStatus" class="upload-status"></span>
+            <button id="uploadFileBtn" class="btn-card btn-full-width">Tải lên</button>
+          </div>
+        </div>
+        <h3>📁 Thư mục Quản lý</h3>
+        <div id="folders" class="folder-list">
+          <p>Đang tải thư mục...</p>
+        </div>
+      </div>
+
+      <div class="file-viewer-area">
+        <h3>Tài liệu trong: <span id="currentFolderName">Vui lòng chọn một thư mục</span></h3>
+        <div id="fileList" class="file-grid">
+          <p class="file-placeholder">Chọn thư mục để xem/quản lý tài liệu.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="studentView" class="doc-layout-student" style="display: none;">
+      <h3>📁 Các Khóa học & Tài liệu</h3>
+      <div id="folderCardGrid" class="folder-grid">
+        <p style="grid-column: 1 / -1; color:#777;">Đang tải danh sách...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL xem tài liệu (full screen, không có nút tải) -->
+  <div id="myModal" class="modal">
+    <div class="modal-content" style="max-width:95%; height:95vh;">
+      <span class="close-btn">&times;</span>
+      <h3 id="modalTitle">Tên Tài liệu</h3>
+      <div id="modalBody" class="modal-body-viewer"></div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module">
+    import { 
+      auth, db, onAuthStateChanged, signInAnonymously, signInWithCustomToken,
+      doc, getDoc, setDoc, updateDoc, collection, onSnapshot, deleteDoc
+    } from "./firebase.js";
+
+    const CLOUD_NAME = "dmxz0m1x3";
+    const UPLOAD_PRESET = "8a1_upload";
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    let selectedFolderId = null;
+    let allFolders = [];
+    let isAdmin = false;
+
+    const adminViewEl = document.getElementById('adminView');
+    const studentViewEl = document.getElementById('studentView');
+    const folderCardGridEl = document.getElementById('folderCardGrid');
+    const foldersEl = document.getElementById('folders');
+    const currentFolderNameEl = document.getElementById('currentFolderName');
+    const fileListEl = document.getElementById('fileList');
+    const newFolderNameInput = document.getElementById('newFolderName');
+    const addFolderBtn = document.getElementById('addFolderBtn');
+    const fileInput = document.getElementById('fileInput');
+    const uploadFileBtn = document.getElementById('uploadFileBtn');
+    const uploadStatusEl = document.getElementById('uploadStatus');
+
+    const modal = document.getElementById("myModal");
+    const closeBtn = document.querySelector(".close-btn");
+    const modalTitleEl = document.getElementById("modalTitle");
+    const modalBodyEl = document.getElementById("modalBody");
+
+    // 💡 TOAST MỚI
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      let icon = type === 'error' ? '❌' : '✅';
+      toast.innerHTML = `<span>${icon}</span> ${message}`;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        toast.addEventListener('transitionend', () => toast.remove());
+      }, 3000);
+    }
+
+    // 🔥 Chuyển view admin/student
+    function switchView(is_Admin) {
+      adminViewEl.style.display = is_Admin ? 'grid' : 'none';
+      studentViewEl.style.display = is_Admin ? 'none' : 'block';
+    }
+
+    // 🔥 Firebase Auth
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        try {
+          if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+          else await signInAnonymously(auth);
+        } catch (error) {
+          showToast("Không thể xác thực người dùng!", "error");
+        }
+      }
+      let is_Admin_User = false;
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        is_Admin_User = userDoc.exists() && userDoc.data().role === 'admin';
+      }
+      isAdmin = is_Admin_User;
+      switchView(isAdmin);
+      if (allFolders.length > 0) renderAllContent(allFolders);
+    });
+
+    // 🔥 Lắng nghe dữ liệu Firestore
+    onSnapshot(collection(db, "docs"), (snapshot) => {
+      const folders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      allFolders = folders;
+      if (typeof isAdmin === 'boolean') renderAllContent(folders);
+    }, () => showToast("Lỗi tải dữ liệu Firestore!", "error"));
+
+    // Render toàn bộ nội dung
+    function renderAllContent(folders) {
+      folders.sort((a, b) => a.name.localeCompare(b.name));
+      if (isAdmin) {
+        if (!selectedFolderId && folders.length > 0) selectedFolderId = folders[0].id;
+        renderAdminFolders(folders);
+        const activeFolder = folders.find(f => f.id === selectedFolderId);
+        if (activeFolder) {
+          currentFolderNameEl.textContent = `📂 ${activeFolder.name}`;
+          renderFiles(activeFolder.files || []);
+        } else {
+          fileListEl.innerHTML = '<p class="file-placeholder">Chọn thư mục để xem/quản lý tài liệu.</p>';
+        }
+      } else renderStudentFolders(folders);
+    }
+
+    // 🧩 Render thư mục Admin
+    function renderAdminFolders(folders) {
+      foldersEl.innerHTML = '';
+      folders.forEach(folder => {
+        const item = document.createElement('div');
+        const isActive = folder.id === selectedFolderId ? 'active' : '';
+        item.className = `folder-item ${isActive}`;
+        item.innerHTML = `
+          <span>📁 ${folder.name}</span>
+          <small>(${folder.files ? folder.files.length : 0})</small>
+          ${isAdmin ? `<button class="delete-folder-btn" data-folder-id="${folder.id}">🗑️</button>` : ''}
+        `;
+        item.onclick = (e) => {
+          if (e.target.closest('.delete-folder-btn')) return;
+          selectedFolderId = folder.id;
+          currentFolderNameEl.textContent = `📂 ${folder.name}`;
+          renderAdminFolders(folders);
+          renderFiles(folder.files || []);
+        };
+        if (isAdmin) item.querySelector('.delete-folder-btn').onclick = () => handleDeleteFolder(folder.id, folder.name);
+        foldersEl.appendChild(item);
+      });
+    }
+
+    // 🧩 Render thư mục cho Student
+    function renderStudentFolders(folders) {
+      folderCardGridEl.innerHTML = folders.length
+        ? folders.map(f => `
+          <div class="folder-card" onclick="window.location.href='doc-detail.html?id=${f.id}'">
+            <div class="icon">📂</div>
+            <h4>${f.name}</h4>
+            <p>${f.files ? f.files.length : 0} tài liệu</p>
+          </div>
+        `).join('')
+        : '<p class="file-placeholder">Chưa có thư mục nào được tạo.</p>';
+    }
+
+    // 🧩 Render file trong thư mục (Admin Panel)
+    function renderFiles(files) {
+      fileListEl.innerHTML = '';
+      if (!files || files.length === 0) {
+        fileListEl.innerHTML = '<p class="file-placeholder">Thư mục này chưa có tài liệu nào.</p>';
+        return;
+      }
+
+      files.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+      files.forEach(file => {
+        const card = document.createElement('div');
+        card.className = 'file-card';
+        const fileExt = file.name.split('.').pop().toUpperCase();
+
+        let preview;
+        if (file.type.startsWith('image/')) preview = `<img src="${file.url}" class="preview-img">`;
+        else if (file.type.includes('pdf')) preview = `<div class="preview-img pdf">PDF</div>`;
+        else preview = `<div class="preview-img other">${fileExt}</div>`;
+
+        card.innerHTML = `
+          ${preview}
+          <h4>${file.name}</h4>
+          <div class="file-actions">
+            <button class="view-btn">👁️</button>
+            ${isAdmin ? `<button class="delete-btn">🗑️</button>` : ''}
+          </div>
+        `;
+        card.querySelector('.view-btn').onclick = () => showFileDetail(file);
+        if (isAdmin) card.querySelector('.delete-btn').onclick = () => handleDeleteFile(file.url, file.name);
+        fileListEl.appendChild(card);
+      });
+    }
+
+    // 📤 Thêm thư mục
+    addFolderBtn.onclick = async () => {
+      if (!isAdmin) return showToast("Bạn không có quyền Admin!", "error");
+      const folderName = newFolderNameInput.value.trim();
+      if (!folderName) return showToast("Vui lòng nhập tên thư mục!", "error");
+      const folderId = folderName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      if (allFolders.find(f => f.id === folderId)) return showToast("Tên thư mục đã tồn tại!", "error");
+
+      try {
+        await setDoc(doc(db, "docs", folderId), { name: folderName, files: [], createdAt: new Date() });
+        newFolderNameInput.value = '';
+        showToast(`Tạo thư mục "${folderName}" thành công 🎉`);
+      } catch {
+        showToast("Không thể thêm thư mục!", "error");
+      }
+    };
+
+    // 🗑️ Xóa thư mục
+    async function handleDeleteFolder(id, name) {
+      if (!confirm(`Xóa thư mục "${name}"?`)) return;
+      try {
+        await deleteDoc(doc(db, "docs", id));
+        showToast(`Đã xóa "${name}" ✅`);
+      } catch {
+        showToast("Lỗi xóa thư mục!", "error");
+      }
+    }
+
+    // 🗑️ Xóa file
+    async function handleDeleteFile(fileUrl, fileName) {
+      if (!confirm(`Xóa tệp "${fileName}"?`)) return;
+      try {
+        const folderDocRef = doc(db, "docs", selectedFolderId);
+        const folderDoc = await getDoc(folderDocRef);
+        if (folderDoc.exists()) {
+          const updated = folderDoc.data().files.filter(f => f.url !== fileUrl);
+          await updateDoc(folderDocRef, { files: updated });
+          showToast(`Đã xóa "${fileName}" ✅`);
+        }
+      } catch {
+        showToast("Lỗi xóa tệp!", "error");
+      }
+    }
+   // Upload file
+uploadFileBtn.onclick = async () => {
+  if (!isAdmin) return showToast("Bạn không có quyền Admin!", "error");
+  if (!selectedFolderId) return showToast("Vui lòng chọn thư mục trước!", "error");
+
+  const file = fileInput.files[0];
+  if (!file) return showToast("Vui lòng chọn tệp để tải lên!", "error");
+
+  uploadStatusEl.textContent = "☁️ Đang tải lên Cloudinary...";
+  uploadStatusEl.style.color = "#555";
+  uploadFileBtn.disabled = true;
+
+  try {
+    // Chuẩn bị form gửi Cloudinary
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET);
+
+    // Gửi file lên Cloudinary
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (!data.secure_url) throw new Error("Upload thất bại!");
+    uploadStatusEl.textContent = "📤 Đã tải lên Cloudinary thành công!";
+    uploadStatusEl.style.color = "#27ae60"; // xanh lá
+
+    // Cập nhật Firestore
+    const folderRef = doc(db, "docs", selectedFolderId);
+    const folderSnap = await getDoc(folderRef);
+    if (folderSnap.exists()) {
+      const currentFiles = folderSnap.data().files || [];
+      const newFile = {
+        name: file.name,
+        url: data.secure_url,
+        type: file.type || "unknown",
+        uploadedAt: new Date()
+      };
+      await updateDoc(folderRef, { files: [...currentFiles, newFile] });
+    }
+
+    // Reset input
+    fileInput.value = "";
+    showToast(`Tải lên "${file.name}" thành công ✅`);
+  } catch (err) {
+    console.error(err);
+    uploadStatusEl.textContent = "❌ Lỗi tải lên Cloudinary!";
+    uploadStatusEl.style.color = "#e74c3c"; // đỏ
+    showToast("Không thể tải lên tệp!", "error");
+  } finally {
+    uploadFileBtn.disabled = false;
+
+    // Tự ẩn status sau 4s
+    setTimeout(() => {
+      uploadStatusEl.textContent = "";
+    }, 4000);
+  }
+};
+
+
+    // 👁️ Modal xem trước
+    function showFileDetail(file) {
+      modalTitleEl.textContent = file.name;
+      modalBodyEl.innerHTML = '';
+      const iframeHeight = 'calc(100vh - 200px)';
+      if (file.type.startsWith('image/'))
+        modalBodyEl.innerHTML = `<img src="${file.url}" style="max-width:100%; display:block; margin:auto;">`;
+      else if (file.type.includes('pdf'))
+        modalBodyEl.innerHTML = `<iframe src="${file.url}" width="100%" height="${iframeHeight}" frameborder="0"></iframe>`;
+      else if (file.url.match(/\.(docx|pptx|xlsx)$/i))
+        modalBodyEl.innerHTML = `<iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true" width="100%" height="${iframeHeight}" frameborder="0"></iframe>`;
+      else modalBodyEl.innerHTML = '<p style="padding:20px;text-align:center;">Không xem trước được định dạng này.</p>';
+      modal.style.display = "block";
+    }
+
+    closeBtn.onclick = () => modal.style.display = "none";
+    window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
+  </script>
+</body>
+</html>

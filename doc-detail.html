@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="detailPageTitle">Chi tiết Tài liệu</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .container {
+      max-width: 1200px;
+      margin: 80px auto 40px;
+      padding: 20px;
+    }
+    h1 { color: #2c3e50; margin-bottom: 20px; }
+
+    /* ===== QUAY LẠI ===== */
+    .back-btn {
+      position: fixed;
+      top: 80px;
+      left: 40px;
+      z-index: 1000;
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: #2980b9; }
+
+    /* ===== GRID FILE ===== */
+    #fileDetailGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 25px;
+      padding: 20px;
+      background: #f4f6f9;
+      border-radius: 12px;
+    }
+    .file-card-detail {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      transition: transform 0.2s;
+    }
+    .file-card-detail:hover { transform: translateY(-3px); }
+    .file-card-detail h4 { color: #34495e; margin-bottom: 10px; }
+    .preview-img-detail {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      background: #ecf0f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #34495e;
+      font-weight: bold;
+    }
+    .file-card-detail a {
+      display: inline-block;
+      background: #2ecc71;
+      padding: 8px 15px;
+      border-radius: 6px;
+      color: white;
+      text-decoration: none;
+      margin-top: 10px;
+      transition: background 0.2s;
+    }
+    .file-card-detail a:hover { background: #27ae60; }
+
+    /* ===== MODAL FULLSCREEN ===== */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.8);
+      overflow: hidden;
+    }
+    .modal-content {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      padding: 0;
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 32px;
+      color: white;
+      cursor: pointer;
+      z-index: 3000;
+    }
+    .modal-body-content {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-body-content iframe, 
+    .modal-body-content img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <button class="back-btn" onclick="window.location.href='doc.html'">⬅️ Quay lại</button>
+
+  <script type="module">
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
+
+  <div class="container">
+    <h1 id="detailHeader">Tài liệu chi tiết</h1>
+    <div id="fileDetailGrid">
+      <p>Đang tải tài liệu...</p>
+    </div>
+  </div>
+
+  <!-- MODAL XEM TOÀN MÀN HÌNH -->
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <div id="modalBody" class="modal-body-content"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db, doc, onSnapshot } from "./firebase.js";
+
+    const folderId = new URLSearchParams(window.location.search).get('id');
+    const detailHeaderEl = document.getElementById('detailHeader');
+    const fileDetailGridEl = document.getElementById('fileDetailGrid');
+    const modal = document.getElementById("myModal");
+    const closeBtn = document.querySelector(".close-btn");
+    const modalBodyEl = document.getElementById("modalBody");
+
+    closeBtn.onclick = () => {
+      modal.style.display = "none";
+      modalBodyEl.innerHTML = '';
+    };
+    window.onclick = (e) => { if (e.target == modal) { modal.style.display = "none"; modalBodyEl.innerHTML = ''; } };
+
+    function showFileDetail(file) {
+      modalBodyEl.innerHTML = '';
+      if (file.type.startsWith('image/')) {
+        modalBodyEl.innerHTML = `<img src="${file.url}" alt="${file.name}">`;
+      } else if (file.type.includes('pdf')) {
+        modalBodyEl.innerHTML = `<iframe src="${file.url}" frameborder="0"></iframe>`;
+      } else if (file.url.match(/\.(docx|pptx|xlsx)$/i)) {
+        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true`;
+        modalBodyEl.innerHTML = `<iframe src="${googleViewerUrl}" frameborder="0"></iframe>`;
+      } else {
+        modalBodyEl.innerHTML = '<p style="color:white;text-align:center;">Không thể xem trước định dạng này.</p>';
+      }
+      modal.style.display = "block";
+    }
+
+    if (folderId) {
+      onSnapshot(doc(db, "docs", folderId), (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const folderData = docSnapshot.data();
+          const folderName = folderData.name || "Tài liệu";
+          const files = folderData.files || [];
+          detailHeaderEl.textContent = `📚 Tài liệu chi tiết: ${folderName}`;
+          document.getElementById('detailPageTitle').textContent = `Chi tiết ${folderName}`;
+          renderFilesDetail(files);
+        } else {
+          fileDetailGridEl.innerHTML = '<p style="grid-column: 1 / -1; color:red;">Thư mục này không tồn tại hoặc đã bị xóa.</p>';
+        }
+      });
+    }
+
+    function renderFilesDetail(files) {
+      fileDetailGridEl.innerHTML = '';
+      if (files.length === 0) {
+        fileDetailGridEl.innerHTML = '<p style="grid-column: 1 / -1; color:#777;">Thư mục này chưa có tài liệu nào.</p>';
+        return;
+      }
+      files.forEach(file => {
+        let ext = file.name.split('.').pop().toUpperCase();
+        let preview = '';
+        if (file.type.startsWith('image/') || file.url.match(/\.(jpg|jpeg|png|gif)$/i))
+          preview = `<img src="${file.url}" class="preview-img-detail" alt="Preview">`;
+        else if (file.type.includes('pdf'))
+          preview = `<div class="preview-img-detail" style="background:#e74c3c;color:#fff;">PDF</div>`;
+        else if (['DOCX','PPTX','XLSX'].includes(ext))
+          preview = `<div class="preview-img-detail" style="background:#3498db;color:#fff;">${ext}</div>`;
+        else
+          preview = `<div class="preview-img-detail">${ext}</div>`;
+
+        const card = document.createElement('div');
+        card.className = 'file-card-detail';
+        card.innerHTML = `
+          ${preview}
+          <h4>${file.name}</h4>
+          <a href="#" class="view-file-btn">👁️ Xem trước</a>
+        `;
+        card.querySelector('.view-file-btn').onclick = (e) => {
+          e.preventDefault();
+          showFileDetail(file);
+        };
+        fileDetailGridEl.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>

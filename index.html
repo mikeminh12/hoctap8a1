@@ -9,52 +9,13 @@
   <div id="navbar"></div>
 
   <script type="module">
+// Load nav.html trước, rồi mới load nav.js
     fetch("nav.html")
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById("navbar").innerHTML = html;
-        import('./nav.js');
-        
-        // 🔥 DARK MODE LOGIC START 🔥
-        const body = document.body;
-        // Dùng setTimeout để đảm bảo nút đã được render trong nav.html
-        setTimeout(() => { 
-            const toggleBtn = document.getElementById('theme-toggle-btn');
-            if (!toggleBtn) return; 
-            
-            const THEME_KEY = 'themePreference';
-
-            function applyTheme(theme) {
-                if (theme === 'dark') {
-                    body.classList.add('dark-mode');
-                    toggleBtn.textContent = '☀️'; // Icon sáng
-                    localStorage.setItem(THEME_KEY, 'dark');
-                } else {
-                    body.classList.remove('dark-mode');
-                    toggleBtn.textContent = '🌙'; // Icon tối
-                    localStorage.setItem(THEME_KEY, 'light');
-                }
-            }
-
-            // 1. Tải chủ đề đã lưu
-            const savedTheme = localStorage.getItem(THEME_KEY);
-            if (savedTheme) {
-                applyTheme(savedTheme);
-            } else {
-                // Mặc định theo hệ thống nếu không có lưu trữ
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                applyTheme(prefersDark ? 'dark' : 'light');
-            }
-
-            // 2. Thêm sự kiện chuyển đổi
-            toggleBtn.addEventListener('click', () => {
-                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                applyTheme(newTheme);
-            });
-        }, 100); // Dùng setTimeout nhỏ để đảm bảo DOM button đã sẵn sàng
-        // 🔥 DARK MODE LOGIC END 🔥
-      });
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
   </script>
 
   <div class="container">
