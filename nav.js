@@ -28,3 +28,29 @@ onAuthStateChanged(auth, (user) => {
         document.getElementById("register-btn").onclick = () => location.href = "login.html";
     }
 });
+// --- Chuyển theme ---
+const themeToggleBtn = document.getElementById("theme-toggle-btn");
+const themeLink = document.getElementById("theme-style");
+
+// Lấy theme đang lưu trong localStorage (nếu có)
+let currentTheme = localStorage.getItem("theme") || "light";
+
+// Gán lại CSS tương ứng khi load
+themeLink.href = currentTheme === "dark" ? "dark.css" : "style.css";
+themeToggleBtn.textContent = currentTheme === "dark" ? "☀️" : "🌙";
+
+// Khi bấm nút thì đổi theme
+themeToggleBtn.addEventListener("click", () => {
+  if (currentTheme === "light") {
+    themeLink.href = "dark.css";
+    themeToggleBtn.textContent = "☀️";
+    currentTheme = "dark";
+  } else {
+    themeLink.href = "style.css";
+    themeToggleBtn.textContent = "🌙";
+    currentTheme = "light";
+  }
+
+  // Lưu lại để lần sau vẫn giữ theme cũ
+  localStorage.setItem("theme", currentTheme);
+});
