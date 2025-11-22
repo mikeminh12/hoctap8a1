@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Danh Sách Bạn Bè | Học tập 8A1</title>
+    <link id="theme-style" rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="navbar"></div>
+
+    <div id="toast-container" class="toast-container"></div>
+    
+    <div class="container container-detail">
+        <h1>🤝 Quản lý Bạn Bè và Tin Nhắn</h1>
+        <hr>
+
+        <div class="card">
+            <h2>🔍 Tìm kiếm người dùng khác</h2>
+            <input type="text" id="user-search-input" placeholder="Nhập tên tài khoản để tìm kiếm...">
+            
+            <div id="all-users-list" class="user-list">
+                <p class="loading-message">Đang tải danh sách người dùng...</p>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="card">
+            <h2>📬 Lời mời kết bạn</h2>
+            <div id="requests-list" class="user-list">
+                <p class="loading-message">Đang chờ tải lời mời...</p>
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="card">
+            <h2>⭐ Bạn bè của tôi</h2>
+            <div id="friends-list" class="user-list">
+                <p class="loading-message">Đang chờ tải danh sách bạn bè...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // 1. Load Navbar trước
+        fetch("nav.html")
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById("navbar").innerHTML = html;
+                import('./nav.js');
+            });
+    </script>
+    
+    <script type="module" src="./friend.js"></script>
+
+</body>
+</html>

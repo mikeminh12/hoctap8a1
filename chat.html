@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>💬 Phòng Chat 8A1</title>
+  <link id="theme-style" rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <script type="module">
+    // Tải nav.html và nav.js
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
+  
+  <div class="container chat-container">
+    <h2>💬 Phòng Chat Lớp 8A1</h2>
+    
+    <div id="messages-container" class="messages-container">
+      <p class="loading-message">Đang tải tin nhắn...</p>
+    </div>
+
+    <form id="message-form" class="message-form" style="display:none;">
+      <input 
+        id="message-input" 
+        type="text" 
+        placeholder="Nhập tin nhắn của bạn..." 
+        required 
+        autocomplete="off"
+      />
+      <button type="submit" class="btn-primary" id="send-btn">Gửi</button>
+    </form>
+    
+    <div id="login-alert" class="login-warning" style="display:none;">
+        Vui lòng <a href="login.html">đăng nhập</a> để tham gia trò chuyện.
+    </div>
+    
+  </div>
+
+  <script type="module" src="chat.js"></script>
+
+</body>
+</html>

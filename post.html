@@ -39,7 +39,7 @@
 
   <script type="module">
     import { auth, db } from './firebase.js';
-    import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { collection, addDoc, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
     // 🔥 Thay thế bằng thông tin Cloudinary của bạn
@@ -140,13 +140,26 @@
     // ====== FIRESTORE UPLOAD =====
     const col = collection(db, "posts");
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (!user) {
         // Chuyển hướng nếu chưa đăng nhập
         showToast("Bạn cần đăng nhập để đăng bài!", 'error');
         setTimeout(() => location.href = "login.html", 2000);
         return;
       }
+      
+      // ✨ BƯỚC MỚI: KIỂM TRA TRẠNG THÁI CẤM (IS BANNED)
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists() && userDoc.data().isBanned) {
+          showToast(" Tài khoản của bạn đã bị cấm, không thể đăng bài mới!", 'error');
+          // Vô hiệu hóa form và nút
+          title.disabled = true;
+          body.disabled = true;
+          imgInput.disabled = true;
+          btnPost.disabled = true;
+          return;
+      }
+      // ✨ KẾT THÚC KIỂM TRA
 
       btnPost.onclick = async () => {
         if (!title.value.trim() || !body.value.trim()) {

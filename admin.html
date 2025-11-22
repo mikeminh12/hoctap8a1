@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>👑 Bảng điều khiển Admin</title>
+<link id="theme-style" rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Container */
+.admin-container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Tab menu */
+.tab-menu {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+}
+.tab-btn {
+    padding: 10px 15px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: color 0.3s, border-bottom 0.3s;
+    border-bottom: 3px solid transparent;
+    margin-right: 15px;
+    color: #777;
+}
+.tab-btn.active {
+    color: #3498db;
+    border-bottom: 3px solid #3498db;
+}
+.tab-content {
+    display: none;
+    padding: 20px 0;
+}
+.tab-content.active {
+    display: block;
+}
+
+/* Bảng quản lý */
+.management-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+    table-layout: fixed;
+}
+.management-table th, .management-table td {
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.management-table th {
+    background-color: #f4f4f4;
+    font-weight: 600;
+}
+
+/* Cột wrap nội dung */
+.management-table td.username,
+.management-table td.realname,
+.management-table td.title,
+.management-table td.comment {
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 200px;
+}
+
+/* Cột hành động */
+.management-table td.actions {
+    white-space: normal;
+    min-width: 240px; /* Tăng kích thước để chứa thêm nút Chỉnh Role */
+}
+
+/* Nút hành động */
+.action-btn {
+    padding: 5px 8px;
+    margin: 2px 2px 2px 0;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+.btn-ban { background-color: #f39c12; color: white; }
+.btn-delete { background-color: #e74c3c; color: white; }
+.btn-activate { background-color: #2ecc71; color: white; }
+.btn-view { background-color: #3498db; color: white; }
+.btn-edit-link { 
+    display: inline-block; 
+    padding: 8px 15px; 
+    background: #9b59b6; 
+    color: white; 
+    border-radius: 5px; 
+    text-decoration: none;
+    margin-bottom: 10px;
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+    .management-table th, .management-table td {
+        font-size: 0.8em;
+        padding: 6px 8px;
+    }
+    .management-table td.username,
+    .management-table td.realname,
+    .management-table td.title,
+    .management-table td.comment {
+        max-width: 120px;
+    }
+    .management-table td.actions {
+        min-width: 140px;
+    }
+}
+</style>
+</head>
+<body>
+<div id="navbar"></div>
+<script type="module">
+fetch("nav.html").then(res => res.text())
+.then(html => { document.getElementById("navbar").innerHTML = html; import('./nav.js'); });
+</script>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div class="container admin-container"> 
+    <h1>👑 Bảng điều khiển Admin</h1>
+    <div id="loading" style="text-align:center; padding: 20px;">⏳ Đang kiểm tra quyền Admin...</div>
+
+    <div id="adminContent" style="display: none;">
+        <div class="tab-menu">
+            <button class="tab-btn active" data-tab="users">🧑‍💻 Người dùng</button>
+            <button class="tab-btn" data-tab="posts">📝 Bài viết & Comment</button>
+            <button class="tab-btn" data-tab="news">📰 Tin tức</button>
+            <button class="tab-btn" data-tab="website">🌐 Quản lý Web</button>
+        </div>
+
+        <div id="tab-users" class="tab-content active">
+            <h2>Quản lý Tài khoản Người dùng</h2>
+            <p>Trạng thái: 🟢 Đã kích hoạt, 🟡 Yêu cầu kích hoạt, 🔴 Đã bị ban</p>
+            <hr>
+            <div id="user-list">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th class="username">Username</th>
+                            <th class="realname">Tên thật</th>
+                            <th>Role</th>
+                            <th>Trạng thái</th>
+                            <th class="actions">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-tbody">
+                        <tr><td colspan="5">Đang tải danh sách người dùng...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-posts" class="tab-content">
+            <h2>Quản lý Bài viết Diễn đàn</h2>
+            <div id="post-list-admin">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th class="title">Tiêu đề</th>
+                            <th>Tác giả</th>
+                            <th>Ngày đăng</th>
+                            <th class="actions">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="post-tbody-admin">
+                        <tr><td colspan="4">Đang tải danh sách bài viết...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 style="margin-top: 30px;">Quản lý Bình luận Gần đây</h2>
+            <div id="comment-list-admin">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th class="comment">Nội dung</th>
+                            <th>Tác giả</th>
+                            <th class="title">Bài viết</th>
+                            <th class="actions">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comment-tbody-admin">
+                        <tr><td colspan="4">Đang tải danh sách bình luận...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-news" class="tab-content">
+            <h2>Quản lý Tin tức</h2>
+            <a href="post-news.html" class="btn-edit-link">📝 Đăng tin mới</a>
+            <div id="news-list-admin">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th class="title">Tiêu đề</th>
+                            <th>Ngày đăng</th>
+                            <th class="actions">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="news-tbody-admin">
+                        <tr><td colspan="3">Đang tải danh sách tin tức...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-website" class="tab-content">
+            <h2>Quản lý Nội dung Chung</h2>
+            <p>Sử dụng các trang chuyên biệt để chỉnh sửa nội dung chuyên sâu:</p>
+            <div class="login-actions" style="justify-content: flex-start; gap: 15px;">
+                <a href="timetable.html" class="btn-login" style="background: #3498db;">📅 Quản lý Thời Khóa Biểu</a>
+                <a href="doc.html" class="btn-signup" style="background: #27ae60;">📚 Quản lý Tài liệu</a>
+            </div>
+            <h2 style="margin-top: 30px;">Cấu hình Chung</h2>
+            <p><em>(Chưa triển khai - Có thể thêm form Cấu hình chung của website tại đây)</em></p>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { auth, db } from './firebase.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy, getDoc } 
+  from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// Toast function
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    let icon = '';
+    if (type === 'success') { icon = '✅'; toast.style.borderLeftColor = '#2ecc71'; }
+    else if (type === 'error') { icon = '❌'; toast.style.borderLeftColor = '#e74c3c'; }
+    else if (type === 'info') { icon = '💡'; toast.style.borderLeftColor = '#3498db'; }
+    toast.innerHTML = `<span>${icon}</span> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', ()=>toast.remove()); }, 3000);
+}
+
+// Elements
+const loadingEl = document.getElementById("loading");
+const adminContentEl = document.getElementById("adminContent");
+const userTbody = document.getElementById("user-tbody");
+const postTbody = document.getElementById("post-tbody-admin");
+const newsTbody = document.getElementById("news-tbody-admin");
+const commentTbody = document.getElementById("comment-tbody-admin");
+
+// Collections
+const usersCol = collection(db, "users");
+const postsCol = collection(db, "posts");
+const newsCol = collection(db, "news");
+
+// Check admin
+onAuthStateChanged(auth, async (user) => {
+    if (!user) { showToast("Bạn cần đăng nhập!", 'error'); setTimeout(()=>location.href="login.html",2000); return; }
+    const userDoc = await getDoc(doc(db,"users",user.uid));
+    if (!userDoc.exists() || userDoc.data().role !== "admin") {
+        showToast("Bạn không có quyền truy cập!", 'error'); setTimeout(()=>location.href="index.html",2000); return;
+    }
+    loadingEl.style.display="none";
+    adminContentEl.style.display="block";
+    loadUsers(); loadPosts(); loadNews(); loadRecentComments(); setupTabSwitching();
+});
+
+// Tab switching
+function setupTabSwitching() {
+    document.querySelectorAll(".tab-btn").forEach(btn=>{
+        btn.onclick=()=>{
+            document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+            btn.classList.add("active");
+            document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+        }
+    });
+}
+
+// Admin actions & load functions
+window.adminActions = {
+    toggleBan: async(uid,isBanned)=>{
+        if(uid===auth.currentUser.uid){ showToast("Không thể tự ban/unban mình!",'error'); return; }
+        if(!confirm(`Bạn có chắc chắn muốn ${isBanned?'UNBAN':'BAN'}?`)) return;
+        await updateDoc(doc(usersCol,uid),{isBanned:!isBanned,isActive:isBanned?true:false});
+        showToast(`${isBanned?'Unban':'Ban'} thành công!`,'success'); loadUsers();
+    },
+    activateUser: async(uid)=>{
+        if(!confirm("Kích hoạt tài khoản này?")) return;
+        await updateDoc(doc(usersCol,uid),{isActive:true,activationRequested:false,isBanned:false});
+        showToast("Kích hoạt thành công!",'success'); loadUsers();
+    },
+    deleteUser: async(uid,username)=>{
+        if(uid===auth.currentUser.uid){ showToast("Không thể tự xóa mình!",'error'); return; }
+        if(!confirm(`XÓA vĩnh viễn người dùng ${username}?`)) return;
+        await deleteDoc(doc(usersCol,uid));
+        showToast("Đã xóa!",'success'); loadUsers();
+    },
+    deletePost: async(postId)=>{
+        if(!confirm("XÓA bài viết này?")) return;
+        await deleteDoc(doc(postsCol,postId));
+        showToast("Đã xóa bài viết!",'success'); loadPosts(); loadRecentComments();
+    },
+    deleteComment: async(postId,commentId)=>{
+        if(!confirm("XÓA bình luận này?")) return;
+        await deleteDoc(doc(db,"posts",postId,"comments",commentId));
+        showToast("Đã xóa bình luận!",'success'); loadRecentComments();
+    },
+    deleteNews: async(newsId)=>{
+        if(!confirm("XÓA tin tức này?")) return;
+        await deleteDoc(doc(newsCol,newsId));
+        showToast("Đã xóa tin tức!",'success'); loadNews();
+    },
+    
+    // ===================================================
+    // ✨ HÀM MỚI: CẬP NHẬT ROLE
+    // ===================================================
+    openRoleModal: async (uid, currentRole) => {
+        // Hỏi người dùng role mới
+        const newRole = prompt(`Nhập Role mới cho người dùng (admin/student). Role hiện tại: ${currentRole}`);
+        
+        if (newRole === null || newRole.trim() === '') {
+            return; // Hủy bỏ
+        }
+        
+        const trimmedRole = newRole.trim().toLowerCase();
+        
+        if (trimmedRole !== 'admin' && trimmedRole !== 'student') {
+            showToast("Role không hợp lệ. Chỉ chấp nhận 'admin' hoặc 'student'.", 'error');
+            return;
+        }
+
+        if (uid === auth.currentUser.uid && trimmedRole !== 'admin') {
+             showToast("Bạn không thể tự hạ cấp Role của mình!", 'error');
+             return;
+        }
+        
+        try {
+            await updateDoc(doc(usersCol, uid), {
+                role: trimmedRole
+            });
+            showToast(`Đã cập nhật Role thành '${trimmedRole}'!`, 'success');
+            loadUsers();
+        } catch(err) {
+            showToast("Lỗi khi cập nhật Role: " + err.message, 'error');
+            console.error(err);
+        }
+    }
+    // ===================================================
+};
+
+// Load users
+async function loadUsers(){
+    userTbody.innerHTML='<tr><td colspan="5">⏳ Đang tải...</td></tr>';
+    try{
+        const snap=await getDocs(query(usersCol,orderBy("username","asc")));
+        userTbody.innerHTML='';
+        if(snap.empty){ 
+            userTbody.innerHTML='<tr><td colspan="5">😶 Không có người dùng nào.</td></tr>'; 
+            return; 
+        }
+        snap.forEach(dSnap=>{
+            const d=dSnap.data(),uid=dSnap.id,isCurrentUser=auth.currentUser.uid===uid;
+            
+            let statusText = '';
+            let statusColor = '';
+            let banBtnText = 'Ban';
+            let banBtnClass = 'btn-ban';
+            
+            if(d.isBanned){ 
+                statusText = "🔴 Đã bị ban"; 
+                statusColor = "red"; 
+                banBtnText = "Unban"; 
+                banBtnClass = "btn-activate"; 
+            } else if(d.isActive){ 
+                statusText = "🟢 Đã kích hoạt"; 
+                statusColor = "green"; 
+            } else if(d.activationRequested){ 
+                statusText = "🟡 Yêu cầu kích hoạt"; 
+                statusColor = "orange"; 
+            } else { 
+                statusText = "❌ Chưa kích hoạt"; 
+                statusColor = "red"; 
+            }
+            
+            // Xử lý hiển thị Role
+            const displayRole = d.role === 'admin' ? "Admin 👑" : "Student";
+            
+            // Nút Kích hoạt chỉ hiển thị nếu tài khoản chưa active và chưa bị ban
+            const canActivate = !d.isActive && !d.isBanned;
+
+            userTbody.innerHTML+=`
+<tr>
+<td class="username">${d.username} ${isCurrentUser?'(Bạn)':''}</td>
+<td class="realname">${d.realName||'—'}</td>
+<td><b>${displayRole}</b></td>
+<td style="color:${statusColor}">${statusText}</td>
+<td class="actions">
+<button class="action-btn btn-view" onclick="window.adminActions.openRoleModal('${uid}','${d.role}')" ${isCurrentUser?'disabled':''}>Chỉnh Role</button>
+<button class="action-btn ${banBtnClass}" onclick="window.adminActions.toggleBan('${uid}',${!!d.isBanned})" ${isCurrentUser?'disabled':''}>${banBtnText}</button>
+${canActivate ? `<button class="action-btn btn-activate" onclick="window.adminActions.activateUser('${uid}')">Kích hoạt</button>` : ''}
+<button class="action-btn btn-delete" onclick="window.adminActions.deleteUser('${uid}','${d.username}')" ${isCurrentUser?'disabled':''}>Xóa</button>
+</td>
+</tr>`;
+        });
+    }catch(e){ 
+        userTbody.innerHTML='<tr><td colspan="5">❌ Lỗi tải người dùng.</td></tr>'; 
+        console.error(e);
+    }
+}
+
+// Load posts
+async function loadPosts(){
+    postTbody.innerHTML='<tr><td colspan="4">⏳ Đang tải...</td></tr>';
+    try{
+        const snap=await getDocs(query(postsCol,orderBy("createdAt","desc")));
+        postTbody.innerHTML='';
+        if(snap.empty){ postTbody.innerHTML='<tr><td colspan="4">😶 Chưa có bài viết nào.</td></tr>'; return; }
+        snap.forEach(dSnap=>{
+            const d=dSnap.data(),id=dSnap.id,date=d.createdAt?.toDate?.().toLocaleString()||"Không rõ";
+            postTbody.innerHTML+=`
+<tr>
+<td class="title"><a href="post-detail.html?id=${id}" target="_blank">${d.title}</a></td>
+<td>${d.username||'Ẩn danh'}</td>
+<td>${date}</td>
+<td class="actions">
+<button class="action-btn btn-view" onclick="window.open('post-detail.html?id=${id}','_blank')">Xem</button>
+<button class="action-btn btn-delete" onclick="window.adminActions.deletePost('${id}')">Xóa</button>
+</td>
+</tr>`;
+        });
+    }catch(e){ postTbody.innerHTML='<tr><td colspan="4">❌ Lỗi tải bài viết.</td></tr>'; console.error(e);}
+}
+
+// Load recent comments
+async function loadRecentComments(){
+    commentTbody.innerHTML='<tr><td colspan="4">⏳ Đang tải...</td></tr>';
+    try{
+        const postSnap=await getDocs(query(postsCol,orderBy("createdAt","desc")));
+        commentTbody.innerHTML=''; let count=0;
+        for(const postDoc of postSnap.docs){
+            const postId=postDoc.id,postTitle=postDoc.data().title;
+            const commentsCol = collection(db,"posts",postId,"comments");
+            const commentSnap=await getDocs(query(commentsCol,orderBy("createdAt","desc")));
+            for(const cDoc of commentSnap.docs){
+                if(count>=10) break;
+                const c=cDoc.data(),cmtId=cDoc.id,truncated=c.text.length>50?c.text.slice(0,50)+'...':c.text;
+                commentTbody.innerHTML+=`
+<tr>
+<td class="comment">${truncated}</td>
+<td>${c.username||'Ẩn danh'}</td>
+<td class="title"><a href="post-detail.html?id=${postId}" target="_blank">${postTitle}</a></td>
+<td class="actions">
+<button class="action-btn btn-delete" onclick="window.adminActions.deleteComment('${postId}','${cmtId}')">Xóa</button>
+</td>
+</tr>`;
+                count++;
+            }
+        }
+        if(count===0) commentTbody.innerHTML='<tr><td colspan="4">😶 Chưa có bình luận nào.</td></tr>';
+    }catch(e){ commentTbody.innerHTML='<tr><td colspan="4">❌ Lỗi tải bình luận.</td></tr>'; console.error(e);}
+}
+
+// Load news
+async function loadNews(){
+    newsTbody.innerHTML='<tr><td colspan="3">⏳ Đang tải...</td></tr>';
+    try{
+        const snap=await getDocs(query(newsCol,orderBy("createdAt","desc")));
+        newsTbody.innerHTML='';
+        if(snap.empty){ newsTbody.innerHTML='<tr><td colspan="3">😶 Chưa có tin tức nào.</td></tr>'; return; }
+        snap.forEach(dSnap=>{
+            const d=dSnap.data(),id=dSnap.id,date=d.createdAt?.toDate?.().toLocaleString()||"Không rõ";
+            newsTbody.innerHTML+=`
+<tr>
+<td class="title">${d.title}</td>
+<td>${date}</td>
+<td class="actions">
+<button class="action-btn btn-view" onclick="window.open('news-detail.html?id=${id}','_blank')">Xem</button>
+<button class="action-btn btn-delete" onclick="window.adminActions.deleteNews('${id}')">Xóa</button>
+</td>
+</tr>`;
+        });
+    }catch(e){ newsTbody.innerHTML='<tr><td colspan="3">❌ Lỗi tải tin tức.</td></tr>'; console.error(e);}
+}
+</script>
+</body>
+</html>

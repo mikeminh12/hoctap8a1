@@ -2,7 +2,8 @@
 // === Firebase Config ===
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, setLogLevel, collection, onSnapshot, setDoc, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+// 👈 THÊM query, getDocs, where VÀO ĐÂY
+import { getFirestore, setLogLevel, collection, onSnapshot, setDoc, doc, getDoc, updateDoc, deleteDoc, query, getDocs, where } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
 
 // ⚠️ Dán config thật của bạn vào đây ↓↓↓
@@ -47,5 +48,9 @@ export {
     doc, 
     getDoc, 
     updateDoc,
-    deleteDoc
+    deleteDoc,
+    // 👈 THÊM CÁC HÀM NÀY VÀO EXPORT
+    query, 
+    getDocs, 
+    where 
 };

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Thông tin tài khoản</title>
+  <link id="theme-style" rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <script type="module">
+    // Load nav.html trước, rồi mới load nav.js
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("navbar").innerHTML = html;
+        import('./nav.js');
+      });
+  </script>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="container login-container">
+    <h2>👤 Thông tin tài khoản</h2>
+
+    <div id="user-info" class="hidden">
+      
+      <div class="avatar-upload-section">
+        <img id="currentAvatar" src="non.png" alt="Ảnh đại diện" class="current-avatar">
+        <div>
+          <label for="avatarInput">Chọn ảnh đại diện mới</label>
+          <input type="file" id="avatarInput" accept="image/*">
+          <button id="uploadAvatarBtn" class="btn-login" style="margin-top: 10px;">⬆️ Tải lên</button>
+          <span id="avatarUploadStatus" class="upload-status"></span>
+        </div>
+      </div>
+      <hr>
+
+      <p><b>Tài khoản:</b> <span id="username"></span></p>
+      <p><b>Vai trò:</b> <span id="role"></span></p>
+      <p><b>Trạng thái:</b> <span id="status" class="status"></span></p>
+
+      <label>Tên thật</label>
+      <input id="realName" placeholder="Nhập tên thật...">
+
+      <label>Số điện thoại</label>
+      <input id="phone" placeholder="Nhập số điện thoại...">
+
+      <div class="login-actions">
+        <button id="save" class="btn-login">💾 Lưu thay đổi</button>
+        <button id="request" class="btn-signup">📩 Gửi yêu cầu kích hoạt</button>
+      </div>
+
+      <button id="logout" style="background:#dc3545; margin-top:14px;">🚪 Đăng xuất</button>
+    </div>
+
+    <div id="not-logged">
+      <p>⚠️ Bạn chưa đăng nhập. <a href="login.html">Đăng nhập ngay</a>.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import { onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    // Cấu hình Cloudinary (Lấy từ doc.html)
+    const CLOUD_NAME = "dmxz0m1x3";
+    const UPLOAD_PRESET = "8a1_upload";
+    const DEFAULT_AVATAR_PATH = 'non.png';
+
+    // 🧃 Toast function 
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        let icon = type === 'success' ? '✅' : '❌';
+        toast.innerHTML = `<span>${icon}</span> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => toast.remove());
+        }, 3000);
+    }
+
+    // Element refs
+    const usernameEl = document.getElementById("username");
+    const roleEl = document.getElementById("role");
+    const statusEl = document.getElementById("status");
+    const realNameEl = document.getElementById("realName");
+    const phoneEl = document.getElementById("phone");
+    const saveBtn = document.getElementById("save");
+    const requestBtn = document.getElementById("request");
+    const logoutBtn = document.getElementById("logout");
+    const userInfo = document.getElementById("user-info");
+    const notLogged = document.getElementById("not-logged");
+
+    // Refs mới cho Avatar
+    const currentAvatarEl = document.getElementById("currentAvatar");
+    const avatarInput = document.getElementById("avatarInput");
+    const uploadAvatarBtn = document.getElementById("uploadAvatarBtn");
+    const avatarUploadStatusEl = document.getElementById("avatarUploadStatus");
+
+
+    // 🧠 Load data khi đã đăng nhập
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        userInfo.classList.add("hidden");
+        notLogged.classList.remove("hidden");
+        return;
+      }
+
+      notLogged.classList.add("hidden");
+      userInfo.classList.remove("hidden");
+
+      const uid = user.uid;
+      const ref = doc(db, "users", uid);
+      const snap = await getDoc(ref);
+      const data = snap.data();
+
+      if (!snap.exists() || !data) {
+        showToast("Không tìm thấy thông tin tài khoản!", "error");
+        return;
+      }
+
+      // Cập nhật Avatar hiện tại
+      currentAvatarEl.src = user.photoURL || DEFAULT_AVATAR_PATH;
+      
+      usernameEl.textContent = data.username || "(chưa có)";
+      roleEl.textContent = data.role === 'admin' ? "Quản trị viên 👑" : "Học sinh";
+      realNameEl.value = data.realName || "";
+      phoneEl.value = data.phone || "";
+
+      // SỬA LOGIC TRẠNG THÁI KÍCH HOẠT
+      if (data.isBanned) {
+        statusEl.textContent = "❌ Đã bị cấm (Bị khóa)";
+        statusEl.style.color = "#dc3545"; // Đỏ
+      } else if (data.isActive) {
+        statusEl.textContent = "✅ Đã kích hoạt";
+        statusEl.style.color = "green";
+      } else if (data.activationRequested) {
+        statusEl.textContent = "⏳ Đã gửi yêu cầu kích hoạt";
+        statusEl.style.color = "orange";
+      } else {
+        statusEl.textContent = "🚫 Chưa kích hoạt";
+        statusEl.style.color = "red";
+      }
+
+      // 1. Cập nhật info
+      saveBtn.onclick = async () => {
+        try {
+          await updateDoc(ref, {
+            realName: realNameEl.value.trim(),
+            phone: phoneEl.value.trim()
+          });
+          showToast("Đã lưu thông tin!");
+        } catch (err) {
+          showToast("Lỗi khi lưu: " + err.message, "error");
+        }
+      };
+
+      // 2. Gửi yêu cầu kích hoạt
+      requestBtn.onclick = async () => {
+        if (data.isActive || data.isBanned) return;
+        try {
+          await updateDoc(ref, {
+            activationRequested: true,
+            requestedAt: Date.now()
+          });
+          showToast("Đã gửi yêu cầu kích hoạt!");
+          // Cập nhật trạng thái hiển thị
+          statusEl.textContent = "⏳ Đã gửi yêu cầu kích hoạt";
+          statusEl.style.color = "orange";
+        } catch (err) {
+          showToast("Lỗi khi gửi yêu cầu: " + err.message, "error");
+        }
+      };
+
+      // 3. Xử lý Upload Avatar
+      uploadAvatarBtn.onclick = async () => {
+        const file = avatarInput.files[0];
+        if (!file) return showToast("Vui lòng chọn ảnh để tải lên!", "error");
+        if (!file.type.startsWith('image/')) return showToast("Chỉ chấp nhận file ảnh!", "error");
+
+        avatarUploadStatusEl.textContent = "☁️ Đang tải lên Cloudinary...";
+        avatarUploadStatusEl.style.color = "#555";
+        uploadAvatarBtn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("upload_preset", UPLOAD_PRESET);
+
+          // Gửi file lên Cloudinary
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: formData
+          });
+
+          const data = await res.json();
+          if (!data.secure_url) throw new Error("Upload thất bại!");
+
+          // 1. Cập nhật Firebase Auth (photoURL)
+          await updateProfile(user, { photoURL: data.secure_url });
+
+          // 2. Cập nhật giao diện
+          currentAvatarEl.src = data.secure_url;
+          showToast("Đã cập nhật ảnh đại diện thành công! ✅");
+          
+          avatarUploadStatusEl.textContent = "✅ Tải lên thành công!";
+          avatarUploadStatusEl.style.color = "green";
+
+        } catch (err) {
+          console.error(err);
+          avatarUploadStatusEl.textContent = "❌ Lỗi tải lên Avatar!";
+          avatarUploadStatusEl.style.color = "red";
+          showToast("Không thể tải lên ảnh đại diện!", "error");
+        } finally {
+          uploadAvatarBtn.disabled = false;
+          avatarInput.value = ""; // Reset input file
+          setTimeout(() => avatarUploadStatusEl.textContent = "", 4000);
+        }
+      };
+
+      // 4. Đăng xuất
+      logoutBtn.onclick = async () => {
+        await signOut(auth);
+        localStorage.removeItem("user");
+        showToast("Đã đăng xuất!");
+        setTimeout(() => location.href = "login.html", 1500);
+      };
+    });
+  </script>
+
+</body>
+</html>

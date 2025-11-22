@@ -193,7 +193,7 @@
     }
     // 💡 KẾT THÚC HÀM TOAST 💡
 
-    // 🔎 Lấy ID bài viết từ URL
+    // 🔎 Lấy ID bài viết từ URL
     const params = new URLSearchParams(window.location.search);
     const postId = params.get("id");
 
@@ -211,10 +211,23 @@
     let currentPostData = null;
     let currentUser = null; // Biến lưu user đã đăng nhập
 
-    // 🔥 HÀM XỬ LÝ LIKE BÀI VIẾT
+    // 🔥 HÀM MỚI: KIỂM TRA TRẠNG THÁI BANNED
+    async function checkBanStatus(user) {
+        if (!user) return false; // Chưa đăng nhập thì không cấm
+        
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().isBanned) {
+            showToast(" Tài khoản của bạn đã bị cấm! Không thể bình luận/vote/like.", 'error');
+            return true; // Bị cấm
+        }
+        return false; // Không bị cấm
+    }
+
+    // 🔥 HÀM XỬ LÝ LIKE BÀI VIẾT (CẬP NHẬT)
     async function toggleLike(user) {
         if (!user || !currentPostData) return;
-        
+        if (await checkBanStatus(user)) return; // ✨ KIỂM TRA CẤM
+
         const postRef = doc(db, "posts", postId);
         const userId = user.uid;
         const isLiked = Array.isArray(currentPostData.likes) && currentPostData.likes.includes(userId);
@@ -237,12 +250,14 @@
         }
     }
 
-    // 🔥 HÀM XỬ LÝ VOTE BÌNH LUẬN
+    // 🔥 HÀM XỬ LÝ VOTE BÌNH LUẬN (CẬP NHẬT)
     async function toggleCommentVote(commentId, type) {
         if (!currentUser) {
             showToast("Bạn cần đăng nhập để vote bình luận!", 'error');
             return;
         }
+        if (await checkBanStatus(currentUser)) return; // ✨ KIỂM TRA CẤM
+
 
         const commentRef = doc(db, "posts", postId, "comments", commentId);
         const userId = currentUser.uid;
@@ -408,7 +423,7 @@
     }
 
     // Lắng nghe trạng thái đăng nhập
-    onAuthStateChanged(auth, user => {
+    onAuthStateChanged(auth, async user => { // ✨ THÊM ASYNC
         currentUser = user; // Lưu user hiện tại
         
         // Gọi loadPostDetail để xử lý trạng thái Like của user
@@ -417,6 +432,19 @@
         loadComments();
 
       if (user) {
+            // ✨ BƯỚC MỚI: KIỂM TRA TRẠNG THÁI CẤM NGAY TRƯỚC KHI HIỂN THỊ FORM
+            const isBanned = await checkBanStatus(user);
+        
+            if (isBanned) {
+                 commentSection.innerHTML = `
+                    <div class="login-warning">
+                        ❌ Tài khoản của bạn đã bị cấm, không thể bình luận!
+                    </div>
+                `;
+                return;
+            }
+            // ✨ KẾT THÚC KIỂM TRA
+
         commentSection.innerHTML = `
           <form id="commentForm">
             <textarea id="commentText" placeholder="Viết bình luận của bạn..."></textarea>
@@ -427,6 +455,9 @@
         const form = document.getElementById("commentForm");
         form.addEventListener("submit", async e => {
           e.preventDefault();
+            // Kiểm tra ban lần cuối trước khi gửi
+            if (await checkBanStatus(user)) return; 
+            
           const text = document.getElementById("commentText").value.trim();
           if (!text) {
              showToast("Bạn chưa nhập nội dung bình luận!", 'error'); 
