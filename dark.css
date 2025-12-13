@@ -933,3 +933,421 @@ input[type="file"] {
         transform: translate(calc(100vw + 50px), calc(var(--random-y-end) * 100vh)) scale(1);
     }
 }
+/* ===== GHOST ANIMATION ===== */
+.ghost-icon {
+    position: fixed;
+    font-size: 2.5rem; /* Kích thước icon ma */
+    color: rgba(255, 255, 255, 0.7); /* Màu trắng mờ */
+    opacity: 0; /* Bắt đầu ẩn */
+    animation: floatGhost 15s infinite ease-in-out; /* Hoạt ảnh bay */
+    pointer-events: none; /* Không chặn click */
+    z-index: 9999; /* Luôn nổi trên các phần tử khác */
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); /* Bóng ma mị */
+}
+
+/* Biến thể tốc độ và kích thước cho các con ma khác nhau */
+.ghost-icon:nth-child(2) {
+    font-size: 2rem;
+    animation-duration: 18s;
+    animation-delay: 2s;
+    color: rgba(255, 255, 255, 0.6);
+}
+.ghost-icon:nth-child(3) {
+    font-size: 3rem;
+    animation-duration: 22s;
+    animation-delay: 4s;
+    color: rgba(255, 255, 255, 0.8);
+}
+.ghost-icon:nth-child(4) {
+    font-size: 1.8rem;
+    animation-duration: 16s;
+    animation-delay: 6s;
+    color: rgba(255, 255, 255, 0.5);
+}
+.ghost-icon:nth-child(5) {
+    font-size: 2.7rem;
+    animation-duration: 20s;
+    animation-delay: 8s;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+
+@keyframes floatGhost {
+    0% {
+        opacity: 0;
+        transform: translate(calc(0vw - 50px), calc(var(--random-y-start) * 100vh)) scale(1);
+    }
+    10% {
+        opacity: 0.7;
+    }
+    90% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(100vw + 50px), calc(var(--random-y-end) * 100vh)) scale(1);
+    }
+}
+
+/* =========================================================================
+ * 💬 PHÒNG CHAT - TỐI & VIỀN CAM/TÍM
+ * ========================================================================= */
+.chat-container {
+    max-width: 700px;
+    margin: 40px auto;
+}
+
+.messages-container {
+    height: 450px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    padding: 15px;
+    margin-bottom: 20px;
+    background-color: var(--color-dark); /* Nền tối */
+    display: flex;
+    flex-direction: column;
+}
+
+.message {
+    display: flex;
+    margin-bottom: 12px;
+}
+
+.message-content {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.message-username {
+    display: block;
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-bottom: 2px;
+    opacity: 0.8;
+}
+
+.message-time {
+    display: block;
+    font-size: 0.7em;
+    text-align: right;
+    margin-top: 5px;
+    opacity: 0.6;
+}
+
+/* Tin nhắn của người dùng khác */
+.other-message {
+    justify-content: flex-start;
+}
+
+.other-message .message-content {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-bottom-left-radius: 4px;
+    color: #f0f0f0;
+}
+.other-message .message-username {
+    color: #f0f0f0;
+}
+
+/* Tin nhắn của tôi */
+.my-message {
+    justify-content: flex-end;
+}
+
+.my-message .message-content {
+    background-color: var(--color-primary); /* Cam Bí Ngô */
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+.my-message .message-username,
+.my-message .message-time {
+    color: rgba(255, 255, 255, 0.9);
+    opacity: 0.8;
+}
+
+/* Form gửi tin nhắn */
+.message-form {
+    display: flex;
+    gap: 10px;
+}
+
+#message-input {
+    flex-grow: 1;
+    padding: 12px 15px;
+    margin: 0;
+}
+
+.message-form .btn-primary {
+    padding: 12px 25px;
+    height: fit-content;
+    align-self: flex-start;
+    white-space: nowrap;
+}
+
+/* Cảnh báo chung cho trang chat */
+.chat-warning, .chat-error {
+    text-align: center;
+    color: var(--color-delete);
+    font-weight: 600;
+    padding: 20px;
+}
+.loading-message {
+    text-align: center;
+    color: var(--color-neutral);
+    font-style: italic;
+    padding: 20px;
+}
+
+/* Tối ưu mobile cho chat */
+@media (max-width: 500px) {
+    .messages-container {
+        height: 350px;
+    }
+    .message-form {
+        flex-direction: column;
+    }
+    #message-input {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    .message-form .btn-primary {
+        width: 100%;
+        padding: 10px 20px;
+    }
+}
+
+/* =========================================================================
+ * 👥 FRIEND PAGE - DANH SÁCH BẠN BÈ
+ * ========================================================================= */
+.user-list {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    background: var(--color-card-bg);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.user-card span {
+    font-weight: 500;
+    color: #f0f0f0;
+}
+
+/* Nút hành động trong thẻ người dùng */
+.user-card .user-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Ghi đè lại style cho các nút bên trong user-actions */
+.user-card .user-actions button {
+    padding: 8px 15px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: var(--border-radius-sm);
+}
+
+/* Fix lỗi rung/lag khi hover */
+.user-card:hover {
+    transform: none;
+    box-shadow: none;
+    cursor: default;
+}
+
+/* =========================================================================
+ * 🧭 USER MENU - DROPDOWN NAVIGATION
+ * ========================================================================= */
+.user-menu-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.welcome-text {
+    font-weight: 500;
+    color: #f0f0f0;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    object-fit: cover;
+    transition: transform 0.2s;
+    border: 2px solid var(--color-primary);
+}
+
+/* Hiệu ứng dropdown mượt */
+.user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 10;
+    
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(10px);
+    
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+
+    min-width: 150px;
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    margin-top: 10px;
+}
+
+.user-dropdown.active {
+    max-height: 200px;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.user-dropdown a {
+    display: block;
+    padding: 10px 15px;
+    text-decoration: none;
+    color: #f0f0f0;
+    white-space: nowrap;
+}
+
+.user-dropdown a:hover {
+    background-color: #4a4a4a;
+}
+
+/* Ẩn các phần tử có class 'hidden' */
+.hidden,
+.user-dropdown a.hidden {
+    display: none !important;
+}
+
+/* =========================================================================
+ * 👤 ACCOUNT PAGE - TRANG TÀI KHOẢN
+ * ========================================================================= */
+.avatar-upload-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    background: var(--color-card-bg);
+}
+
+.current-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-primary);
+}
+
+.avatar-upload-section > div {
+    display: flex;
+    flex-direction: column;
+}
+
+.upload-status {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.9em;
+    font-style: italic;
+    color: var(--color-primary);
+    min-height: 1.2em;
+}
+/* =========================================================================
+ * ❄️ SNOW EFFECT - HIỆU ỨNG TUYẾT RƠI
+ * ========================================================================= */
+.snowflake {
+    position: fixed;
+    top: -10px;
+    z-index: 9999;
+    user-select: none;
+    pointer-events: none;
+    color: rgba(101, 193, 255, 0.8);
+    font-size: 1em;
+    animation: fall linear infinite;
+}
+
+@keyframes fall {
+    0% {
+        transform: translateY(-10vh) translateX(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(110vh) translateX(var(--drift)) rotate(360deg);
+        opacity: 0.3;
+    }
+}
+
+/* Tạo biến thể khác nhau cho tuyết */
+.snowflake:nth-child(odd) {
+    animation-duration: 15s;
+}
+.snowflake:nth-child(even) {
+    animation-duration: 20s;
+}
+.snowflake:nth-child(3n) {
+    font-size: 1em;
+    animation-duration: 18s;
+}
+.snowflake:nth-child(4n) {
+    font-size: 3em;
+    animation-duration: 22s;
+}
+.snowflake:nth-child(5n) {
+    font-size: 2em;
+    animation-duration: 16s;
+}
+
+#snow-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 9999;
+}
+/* EFFECT CLICK */
+.snow-burst {
+    position: fixed;
+    pointer-events: none;
+    user-select: none;
+    z-index: 10000;
+    animation: burst 2s ease-out forwards;
+    color: rgba(180, 230, 255, 0.9);
+}
+
+@keyframes burst {
+    0% {
+        transform: translate(0, 0) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--x), var(--y)) scale(0.2) rotate(360deg);
+        opacity: 0;
+    }
+}
