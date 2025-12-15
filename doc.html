@@ -34,7 +34,7 @@
           <hr>
           <div class="admin-section">
             <strong>⬆️ Tải tệp lên</strong>
-            <input type="file" id="fileInput" accept="*" class="input-file">
+            <input type="file" id="fileInput" accept="*" multiple class="input-file">
             <span id="uploadStatus" class="upload-status"></span>
             <button id="uploadFileBtn" class="btn-card btn-full-width">Tải lên</button>
           </div>
@@ -289,62 +289,54 @@ uploadFileBtn.onclick = async () => {
   if (!isAdmin) return showToast("Bạn không có quyền Admin!", "error");
   if (!selectedFolderId) return showToast("Vui lòng chọn thư mục trước!", "error");
 
-  const file = fileInput.files[0];
-  if (!file) return showToast("Vui lòng chọn tệp để tải lên!", "error");
+  const files = Array.from(fileInput.files);
+  if (files.length === 0) return showToast("Vui lòng chọn tệp!", "error");
 
-  uploadStatusEl.textContent = "☁️ Đang tải lên Cloudinary...";
-  uploadStatusEl.style.color = "#555";
+  uploadStatusEl.textContent = `☁️ Đang tải ${files.length} tệp...`;
   uploadFileBtn.disabled = true;
 
   try {
-    // Chuẩn bị form gửi Cloudinary
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", UPLOAD_PRESET);
-
-    // Gửi file lên Cloudinary
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await res.json();
-
-    if (!data.secure_url) throw new Error("Upload thất bại!");
-    uploadStatusEl.textContent = "📤 Đã tải lên Cloudinary thành công!";
-    uploadStatusEl.style.color = "#27ae60"; // xanh lá
-
-    // Cập nhật Firestore
     const folderRef = doc(db, "docs", selectedFolderId);
     const folderSnap = await getDoc(folderRef);
-    if (folderSnap.exists()) {
-      const currentFiles = folderSnap.data().files || [];
-      const newFile = {
+    const currentFiles = folderSnap.exists() ? folderSnap.data().files || [] : [];
+
+    const uploadedFiles = [];
+
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", UPLOAD_PRESET);
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+        { method: "POST", body: formData }
+      );
+      const data = await res.json();
+      if (!data.secure_url) throw new Error("Upload fail");
+
+      uploadedFiles.push({
         name: file.name,
         url: data.secure_url,
         type: file.type || "unknown",
         uploadedAt: new Date()
-      };
-      await updateDoc(folderRef, { files: [...currentFiles, newFile] });
+      });
     }
 
-    // Reset input
+    await updateDoc(folderRef, {
+      files: [...currentFiles, ...uploadedFiles]
+    });
+
     fileInput.value = "";
-    showToast(`Tải lên "${file.name}" thành công ✅`);
-  } catch (err) {
-    console.error(err);
-    uploadStatusEl.textContent = "❌ Lỗi tải lên Cloudinary!";
-    uploadStatusEl.style.color = "#e74c3c"; // đỏ
-    showToast("Không thể tải lên tệp!", "error");
+    showToast(`Đã tải ${uploadedFiles.length} tệp ✅`);
+  } catch (e) {
+    console.error(e);
+    showToast("Lỗi tải file!", "error");
   } finally {
     uploadFileBtn.disabled = false;
-
-    // Tự ẩn status sau 4s
-    setTimeout(() => {
-      uploadStatusEl.textContent = "";
-    }, 4000);
+    uploadStatusEl.textContent = "";
   }
 };
+
 
 
     // 👁️ Modal xem trước
