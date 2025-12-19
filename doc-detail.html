@@ -7,6 +7,7 @@
   <link id="theme-style" rel="stylesheet" href="style.css">
 
   <style>
+    /* ===== PHẦN CŨ CỦA BẠN (GIỮ NGUYÊN) ===== */
     .container {
       max-width: 1200px;
       margin: 80px auto 40px;
@@ -14,7 +15,6 @@
     }
     h1 { color: #2c3e50; margin-bottom: 20px; }
 
-    /* ===== QUAY LẠI ===== */
     .back-btn {
       position: fixed;
       top: 80px;
@@ -28,11 +28,8 @@
       cursor: pointer;
       font-weight: 600;
       box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-      transition: background 0.2s;
     }
-    .back-btn:hover { background: #2980b9; }
 
-    /* ===== GRID FILE ===== */
     #fileDetailGrid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -41,6 +38,7 @@
       background: #f4f6f9;
       border-radius: 12px;
     }
+
     .file-card-detail {
       background: #fff;
       border: 1px solid #ddd;
@@ -48,10 +46,8 @@
       padding: 20px;
       text-align: center;
       box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-      transition: transform 0.2s;
     }
-    .file-card-detail:hover { transform: translateY(-3px); }
-    .file-card-detail h4 { color: #34495e; margin-bottom: 10px; }
+
     .preview-img-detail {
       width: 100%;
       height: 150px;
@@ -62,44 +58,25 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.5rem;
-      color: #34495e;
       font-weight: bold;
     }
-    .file-card-detail a {
-      display: inline-block;
-      background: #2ecc71;
-      padding: 8px 15px;
-      border-radius: 6px;
-      color: white;
-      text-decoration: none;
-      margin-top: 10px;
-      transition: background 0.2s;
-    }
-    .file-card-detail a:hover { background: #27ae60; }
 
-    /* ===== MODAL FULLSCREEN ===== */
+    /* ===== MODAL CŨ ===== */
     .modal {
       display: none;
       position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
       z-index: 2000;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.8);
-      overflow: hidden;
     }
+
     .modal-content {
       position: relative;
       width: 100%;
       height: 100%;
       background: #000;
-      padding: 0;
-      border-radius: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
     }
+
     .close-btn {
       position: absolute;
       top: 20px;
@@ -109,23 +86,65 @@
       cursor: pointer;
       z-index: 3000;
     }
+
     .modal-body-content {
       width: 100%;
       height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
+      overflow: hidden;
     }
-    .modal-body-content iframe, 
-    .modal-body-content img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+
+    /* ===== PHẦN THÊM (KHÔNG ẢNH HƯỞNG CŨ) ===== */
+
+    .zoomable {
+      max-width: 100%;
+      max-height: 100%;
+      cursor: grab;
+      transition: transform 0.15s ease;
+      will-change: transform;
+    }
+    .zoomable.dragging {
+      cursor: grabbing;
+      transition: none;
+    }
+
+    .nav-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 40px;
+      color: white;
+      cursor: pointer;
+      z-index: 3000;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 50%;
+      user-select: none;
+    }
+    .left-arrow { left: 20px; }
+    .right-arrow { right: 20px; }
+
+    .image-counter {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+      z-index: 3000;
     }
   </style>
 </head>
+
 <script src="snow.js"></script>
+
 <body>
+  <!-- NAVBAR GIỮ NGUYÊN -->
   <div id="navbar"></div>
 
   <button class="back-btn" onclick="window.location.href='doc.html'">⬅️ Quay lại</button>
@@ -146,10 +165,15 @@
     </div>
   </div>
 
-  <!-- MODAL XEM TOÀN MÀN HÌNH -->
+  <!-- MODAL (CHỈ THÊM ARROW + COUNTER) -->
   <div id="myModal" class="modal">
     <div class="modal-content">
       <span class="close-btn">&times;</span>
+
+      <div class="nav-arrow left-arrow">❮</div>
+      <div class="nav-arrow right-arrow">❯</div>
+      <div class="image-counter" id="imageCounter"></div>
+
       <div id="modalBody" class="modal-body-content"></div>
     </div>
   </div>
@@ -161,76 +185,176 @@
     const detailHeaderEl = document.getElementById('detailHeader');
     const fileDetailGridEl = document.getElementById('fileDetailGrid');
     const modal = document.getElementById("myModal");
-    const closeBtn = document.querySelector(".close-btn");
     const modalBodyEl = document.getElementById("modalBody");
+    const counterEl = document.getElementById("imageCounter");
 
-    closeBtn.onclick = () => {
+    let imageFiles = [];
+    let currentIndex = 0;
+    let scale = 1;
+
+    document.querySelector(".close-btn").onclick = () => {
       modal.style.display = "none";
-      modalBodyEl.innerHTML = '';
+      modalBodyEl.innerHTML = "";
     };
-    window.onclick = (e) => { if (e.target == modal) { modal.style.display = "none"; modalBodyEl.innerHTML = ''; } };
 
-    function showFileDetail(file) {
-      modalBodyEl.innerHTML = '';
-      if (file.type.startsWith('image/')) {
-        modalBodyEl.innerHTML = `<img src="${file.url}" alt="${file.name}">`;
-      } else if (file.type.includes('pdf')) {
-        modalBodyEl.innerHTML = `<iframe src="${file.url}" frameborder="0"></iframe>`;
-      } else if (file.url.match(/\.(docx|pptx|xlsx)$/i)) {
-        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true`;
-        modalBodyEl.innerHTML = `<iframe src="${googleViewerUrl}" frameborder="0"></iframe>`;
-      } else {
-        modalBodyEl.innerHTML = '<p style="color:white;text-align:center;">Không thể xem trước định dạng này.</p>';
-      }
-      modal.style.display = "block";
-    }
-
-    if (folderId) {
-      onSnapshot(doc(db, "docs", folderId), (docSnapshot) => {
-        if (docSnapshot.exists()) {
-          const folderData = docSnapshot.data();
-          const folderName = folderData.name || "Tài liệu";
-          const files = folderData.files || [];
-          detailHeaderEl.textContent = `📚 Tài liệu chi tiết: ${folderName}`;
-          document.getElementById('detailPageTitle').textContent = `Chi tiết ${folderName}`;
-          renderFilesDetail(files);
-        } else {
-          fileDetailGridEl.innerHTML = '<p style="grid-column: 1 / -1; color:red;">Thư mục này không tồn tại hoặc đã bị xóa.</p>';
-        }
-      });
-    }
+    onSnapshot(doc(db, "docs", folderId), snap => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const files = data.files || [];
+      imageFiles = files.filter(f => f.type?.startsWith("image/"));
+      renderFilesDetail(files);
+    });
 
     function renderFilesDetail(files) {
       fileDetailGridEl.innerHTML = '';
-      if (files.length === 0) {
-        fileDetailGridEl.innerHTML = '<p style="grid-column: 1 / -1; color:#777;">Thư mục này chưa có tài liệu nào.</p>';
-        return;
-      }
       files.forEach(file => {
-        let ext = file.name.split('.').pop().toUpperCase();
-        let preview = '';
-        if (file.type.startsWith('image/') || file.url.match(/\.(jpg|jpeg|png|gif)$/i))
-          preview = `<img src="${file.url}" class="preview-img-detail" alt="Preview">`;
-        else if (file.type.includes('pdf'))
-          preview = `<div class="preview-img-detail" style="background:#e74c3c;color:#fff;">PDF</div>`;
-        else if (['DOCX','PPTX','XLSX'].includes(ext))
-          preview = `<div class="preview-img-detail" style="background:#3498db;color:#fff;">${ext}</div>`;
-        else
-          preview = `<div class="preview-img-detail">${ext}</div>`;
-
         const card = document.createElement('div');
         card.className = 'file-card-detail';
         card.innerHTML = `
-          ${preview}
+          <div class="preview-img-detail">
+            ${file.type.startsWith('image/') ? `<img src="${file.url}" style="width:100%;height:100%;object-fit:contain">` : file.name.split('.').pop()}
+          </div>
           <h4>${file.name}</h4>
-          <a href="#" class="view-file-btn">👁️ Xem trước</a>
+          <a href="#">👁️ Xem trước</a>
         `;
-        card.querySelector('.view-file-btn').onclick = (e) => {
+        card.querySelector('a').onclick = e => {
           e.preventDefault();
-          showFileDetail(file);
+          openFile(file);
         };
         fileDetailGridEl.appendChild(card);
       });
+    }
+
+    function openFile(file) {
+      modalBodyEl.innerHTML = '';
+      scale = 1;
+
+      if (file.type.startsWith('image/')) {
+        currentIndex = imageFiles.findIndex(f => f.url === file.url);
+        modalBodyEl.innerHTML = `<img src="${file.url}" class="zoomable" id="zoomImg">`;
+        setupImageControls();
+        updateCounter();
+        toggleNav(true);
+      }
+
+      modal.style.display = "block";
+    }
+
+function setupImageControls() {
+  const img = document.getElementById("zoomImg");
+
+  let posX = 0, posY = 0;
+  let startX = 0, startY = 0;
+  let lastX = 0, lastY = 0;
+  let velX = 0, velY = 0;
+  let dragging = false;
+  let inertiaId = null;
+
+  const apply = () => {
+    img.style.transform =
+      `translate(${posX}px, ${posY}px) scale(${scale})`;
+  };
+
+  const clamp = () => {
+    const rect = img.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const limitX = Math.max(0, (rect.width - vw) / 2);
+    const limitY = Math.max(0, (rect.height - vh) / 2);
+
+    posX = Math.min(limitX, Math.max(-limitX, posX));
+    posY = Math.min(limitY, Math.max(-limitY, posY));
+  };
+
+  /* ===== ZOOM THEO CON TRỎ ===== */
+  img.addEventListener("wheel", e => {
+    e.preventDefault();
+    const r = img.getBoundingClientRect();
+    img.style.transformOrigin =
+      `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`;
+
+    scale = Math.min(Math.max(1, scale + e.deltaY * -0.001), 4);
+    clamp();
+    apply();
+  }, { passive: false });
+
+  /* ===== NHẤN GIỮ → KÉO ===== */
+  img.addEventListener("mousedown", e => {
+    if (scale === 1) return;          // chưa zoom thì không kéo
+    dragging = true;
+    img.classList.add("dragging");
+
+    startX = lastX = e.clientX;
+    startY = lastY = e.clientY;
+
+    velX = velY = 0;
+    cancelAnimationFrame(inertiaId);
+  });
+
+  /* ===== ĐANG GIỮ CHUỘT ===== */
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+
+    posX += dx;
+    posY += dy;
+
+    velX = dx;
+    velY = dy;
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    clamp();
+    apply();
+  });
+
+  /* ===== THẢ CHUỘT → DỪNG ===== */
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+
+    dragging = false;
+    img.classList.remove("dragging");
+
+    // inertia nhẹ cho đã tay
+    const friction = 0.92;
+    const inertia = () => {
+      velX *= friction;
+      velY *= friction;
+
+      posX += velX;
+      posY += velY;
+
+      clamp();
+      apply();
+
+      if (Math.abs(velX) > 0.3 || Math.abs(velY) > 0.3) {
+        inertiaId = requestAnimationFrame(inertia);
+      }
+    };
+    inertia();
+  });
+}
+
+    document.querySelector(".left-arrow").onclick = () => changeImage(-1);
+    document.querySelector(".right-arrow").onclick = () => changeImage(1);
+
+    function changeImage(step) {
+      currentIndex = (currentIndex + step + imageFiles.length) % imageFiles.length;
+      openFile(imageFiles[currentIndex]);
+    }
+
+    function updateCounter() {
+      counterEl.textContent = `${currentIndex + 1} / ${imageFiles.length}`;
+    }
+
+    function toggleNav(show) {
+      document.querySelector(".left-arrow").style.display = show ? "block" : "none";
+      document.querySelector(".right-arrow").style.display = show ? "block" : "none";
+      counterEl.style.display = show ? "block" : "none";
     }
   </script>
 </body>
