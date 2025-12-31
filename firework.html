@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎆 Xem Pháo Hoa Giao Thừa</title>
+<style>
+  html, body { margin: 0; padding: 0; background: black; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+
+  #title {
+    position: fixed; top: 20px; width: 100%; text-align: center;
+    color: #ffeb3b; text-shadow: 0 0 10px red; z-index: 10; pointer-events: none;
+  }
+
+  #countdownBox {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7); color: #ffeb3b; padding: 12px 24px;
+    border-radius: 50px; font-size: 18px; font-weight: bold; z-index: 20;
+    border: 1px solid #444; backdrop-filter: blur(5px);
+  }
+
+  #viewerBox {
+    position: fixed; top: 20px; right: 20px; background: rgba(0, 0, 0, 0.7);
+    color: white; padding: 15px; border-radius: 12px; font-size: 14px;
+    z-index: 20; min-width: 150px; border: 1px solid #333;
+  }
+  .viewer-count { color: #4caf50; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 8px; padding-bottom: 5px; }
+  #viewerList { max-height: 150px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<div id="title">
+  <h1>CHÚC MỪNG NĂM MỚI 2025</h1>
+</div>
+
+<div id="viewerBox">
+  <div class="viewer-count">👥 Đang xem: <span id="count">0</span></div>
+  <div id="viewerList"></div>
+</div>
+
+<div id="countdownBox">
+  <span id="cdText">Đang tải tín hiệu...</span>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script type="module">
+  import { db, rtdb, auth, ref, set, onValue, onDisconnect, doc, onSnapshot, getDoc } from "./firebase.js";
+
+  const cdText = document.getElementById("cdText");
+  const countSpan = document.getElementById("count");
+  const viewerList = document.getElementById("viewerList");
+
+  // 1. LẤY KỊCH BẢN VÀ CHẠY PHÁO HOA
+  onSnapshot(doc(db, "events", "tet_firework"), (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = data.time - now;
+
+      if (diff <= 0) {
+        clearInterval(timer);
+        cdText.innerText = "🎆 CHƯƠNG TRÌNH ĐANG DIỄN RA 🎆";
+        if (window.runFireworkScript && !window.isPlaying) {
+          window.runFireworkScript(data.script);
+        }
+      } else {
+        const s = Math.floor(diff / 1000);
+        const m = Math.floor(s / 60);
+        cdText.innerText = `🎆 Bắt đầu sau: ${m}:${(s % 60).toString().padStart(2, '0')}`;
+      }
+    }, 1000);
+  });
+
+  // 2. HỆ THỐNG NGƯỜI XEM (FIX LỖI PERMISSION)
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) return;
+
+    // Lấy tên từ Firestore (nếu có) hoặc dùng mặc định
+    let displayUsername = "Người xem ẩn danh";
+    try {
+      const uSnap = await getDoc(doc(db, "users", user.uid));
+      if(uSnap.exists()) displayUsername = uSnap.data().username;
+    } catch(e) { console.log("Dùng tên mặc định"); }
+
+    const myViewRef = ref(rtdb, 'viewers/' + user.uid);
+    
+    // Ghi đè để báo hiệu đang online
+    set(myViewRef, { 
+      name: displayUsername, 
+      at: Date.now() 
+    }).catch(err => console.error("Lỗi Rules: ", err));
+
+    // Tự động xóa khi thoát
+    onDisconnect(myViewRef).remove();
+
+    // Lắng nghe danh sách người xem
+    onValue(ref(rtdb, 'viewers'), (snap) => {
+      const viewers = snap.val() || {};
+      const keys = Object.keys(viewers);
+      countSpan.innerText = keys.length;
+      viewerList.innerHTML = keys.map(k => `<div style="margin-bottom:3px">👤 ${viewers[k].name}</div>`).join('');
+    });
+  });
+</script>
+
+<script src="firework.js"></script>
+</body>
+</html>
