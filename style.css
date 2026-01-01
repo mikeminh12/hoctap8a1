@@ -1237,3 +1237,63 @@ input[type="file"] {
   object-fit: cover;     /* CẮT ẢNH, KHÔNG MÉO */
   display: block;
 }
+/* =========================================================================
+ * 📚 DOCS DETAIL PAGE - FIXES CHO CARD VÀ KÍCH THƯỚC ẢNH (GHI ĐÈ)
+ * ========================================================================= */
+
+/* Đảm bảo chế độ Grid hoạt động (3 cột) */
+#fileDetailGrid {
+  display: grid !important; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 25px !important;
+  padding: 20px;
+  background: #f4f6f9;
+  border-radius: 12px;
+}
+/* Thiết lập Card */
+.file-card-detail {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px 20px 15px; 
+  text-align: center;
+  min-height: 250px; 
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Khung Preview (Chứa ảnh) */
+.preview-img-detail {
+  width: 100%;
+  height: 150px !important; /* KHÓA CHIỀU CAO PREVIEW */
+  border-radius: 8px;
+  margin-bottom: 15px;
+  background: #ecf0f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden !important; /* Đảm bảo ẩn phần thừa */
+}
+
+/* HÌNH ẢNH (QUAN TRỌNG: ÉP ảnh thu nhỏ VỪA KHUNG) */
+.preview-img-detail img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important; 
+  object-fit: contain !important; /* Bắt buộc thu nhỏ vừa khung 150px */
+}
+
+/* Nút Tải xuống và Xem trước (Đảm bảo flex và màu) */
+.file-actions {
+    display: flex;
+    justify-content: space-between; 
+    gap: 10px;
+}
+.file-card-detail .download-direct-btn {
+    background: #e67e22 !important; 
+}
+.file-card-detail .view-file-btn {
+    background: #2ecc71 !important; 
+}

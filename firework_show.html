@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor Pháo Hoa - 15 Phút</title>
+    <style>
+        body { display: flex; height: 100vh; margin: 0; background: #111; color: white; font-family: sans-serif; }
+        #panel { width: 350px; padding: 20px; background: #222; overflow-y: auto; border-right: 2px solid #444; }
+        #stage-picker { width: 100%; height: 200px; background: #000; position: relative; border: 1px solid #555; cursor: crosshair; }
+        #marker { position: absolute; width: 10px; height: 10px; background: red; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .section { background: #333; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        input, select, button { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: none; }
+        button { cursor: pointer; font-weight: bold; }
+        .btn-save { background: #4CAF50; color: white; }
+        .btn-load { background: #2196F3; color: white; }
+        .item { padding: 5px; border-bottom: 1px solid #555; font-size: 12px; position: relative; }
+        .del { position: absolute; right: 5px; top: 5px; color: red; cursor: pointer; }
+        #preview { flex: 1; background: #000; position: relative; }
+    </style>
+</head>
+<body>
+
+<div id="panel">
+    <h3>🎆 Biên Đạo Show</h3>
+    <button class="btn-load" onclick="window.loadFromFirebase()">📂 Tải từ Server</button>
+    
+    <div class="section">
+        <label>Vị trí nổ (Click khung dưới):</label>
+        <div id="stage-picker"><div id="marker" style="left:50%; top:30%"></div></div>
+        <input type="number" id="timeS" placeholder="Giây bắt đầu" value="0" step="0.5">
+        <select id="type">
+            <option value="burst">💥 Chùm tròn</option>
+            <option value="sparkle">✨ Lấp lánh</option>
+            <option value="flower">🌸 Hình hoa</option>
+            <option value="text">🔠 Nổ thành CHỮ</option>
+        </select>
+        <input type="text" id="textContent" placeholder="Nội dung chữ" value="TET"> <input type="number" id="loopCount" value="1" min="1" placeholder="Số lần lặp">
+        <input type="color" id="color" value="#ffff00">
+        <button onclick="window.addClip()" style="background: orange;">➕ Thêm quả pháo</button>
+    </div>
+
+    <button onclick="window.previewShow()" style="background: #9c27b0; color: white;">▶ Chạy thử kịch bản</button>
+    <button class="btn-save" onclick="window.uploadShow()">🚀 Lưu lên Firebase</button>
+    
+    <div id="list"></div>
+</div>
+
+<div id="preview"><canvas id="canvas"></canvas></div>
+
+<script type="module">
+    import { db, doc, setDoc, getDoc } from "./firebase.js";
+
+    let timeline = [];
+    let curX = 0.5, curY = 0.3;
+
+    window.addClip = () => {
+        timeline.push({
+            s: parseFloat(document.getElementById('timeS').value),
+            x: curX, y: curY,
+            type: document.getElementById('type').value,
+            color: document.getElementById('color').value,
+            loopCount: parseInt(document.getElementById('loopCount').value) || 1
+        });
+        timeline.sort((a,b) => a.s - b.s);
+        renderList();
+    };
+
+    window.removeClip = (i) => { timeline.splice(i, 1); renderList(); };
+
+    window.previewShow = () => { if(window.runFireworkScript) window.runFireworkScript([...timeline]); };
+
+    window.loadFromFirebase = async () => {
+        const snap = await getDoc(doc(db, "events", "tet_firework"));
+        if(snap.exists()) {
+            timeline = snap.data().script || [];
+            renderList();
+            alert("Tải thành công!");
+        }
+    };
+
+    window.uploadShow = async () => {
+        try {
+            await setDoc(doc(db, "events", "tet_firework"), { script: timeline, time: Date.now() + 5000 });
+            alert("Lưu thành công!");
+        } catch(e) { alert("Lỗi: " + e.message); }
+    };
+
+    function renderList() {
+        const listDiv = document.getElementById('list');
+        listDiv.innerHTML = timeline.map((c, i) => `
+            <div class="item">
+                <b>${c.s}s</b>: ${c.type} (x${c.loopCount})
+                <span class="del" onclick="window.removeClip(${i})">✖</span>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('stage-picker').onclick = (e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        curX = (e.clientX - rect.left) / rect.width;
+        curY = (e.clientY - rect.top) / rect.height;
+        document.getElementById('marker').style.left = (curX * 100) + "%";
+        document.getElementById('marker').style.top = (curY * 100) + "%";
+    };
+
+    // Xuất ra window để Console có thể dùng
+    window.timeline = timeline;
+    window.renderList = renderList;
+</script>
+<script src="firework.js"></script>
+</body>
+</html>

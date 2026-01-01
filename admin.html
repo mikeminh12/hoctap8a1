@@ -125,6 +125,7 @@
 <script type="module">
 fetch("nav.html").then(res => res.text())
 .then(html => { document.getElementById("navbar").innerHTML = html; import('./nav.js'); });
+
 </script>
 
 <div id="toast-container" class="toast-container"></div>
@@ -139,6 +140,7 @@ fetch("nav.html").then(res => res.text())
             <button class="tab-btn" data-tab="posts">📝 Bài viết & Comment</button>
             <button class="tab-btn" data-tab="news">📰 Tin tức</button>
             <button class="tab-btn" data-tab="website">🌐 Quản lý Web</button>
+            <button class="tab-btn" data-tab="event">Sự kiện</button>
         </div>
 
         <div id="tab-users" class="tab-content active">
@@ -227,6 +229,22 @@ fetch("nav.html").then(res => res.text())
             </div>
             <h2 style="margin-top: 30px;">Cấu hình Chung</h2>
             <p><em>(Chưa triển khai - Có thể thêm form Cấu hình chung của website tại đây)</em></p>
+        </div>
+
+        <div id="tab-event" class="tab-content">
+            <h2>🎆 Sự kiện Tết – Bắn pháo hoa</h2>
+
+                <div style="max-width:400px">
+                <label>⏰ Thời gian bắn pháo hoa:</label>
+                <input type="datetime-local" id="fireworkTime" style="width:100%;padding:8px;margin:10px 0">
+
+                <button id="saveFirework" class="action-btn btn-activate">
+                    💾 Lưu thời gian
+                </button>
+
+                <p id="fireworkStatus" style="margin-top:10px;color:#555"></p>
+                </div>
+
         </div>
     </div>
 </div>
@@ -495,6 +513,42 @@ async function loadNews(){
         });
     }catch(e){ newsTbody.innerHTML='<tr><td colspan="3">❌ Lỗi tải tin tức.</td></tr>'; console.error(e);}
 }
+// =======================
+// 🎆 EVENT: TẾT BẮN PHÁO HOA
+// =======================
+
+import { setDoc } from 
+"https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const fireworkBtn = document.getElementById("saveFirework");
+const fireworkInput = document.getElementById("fireworkTime");
+const fireworkStatus = document.getElementById("fireworkStatus");
+
+if (fireworkBtn) {
+    fireworkBtn.addEventListener("click", async () => {
+        if (!fireworkInput.value) {
+            showToast("Chưa chọn thời gian bắn pháo hoa!", "error");
+            return;
+        }
+
+        try {
+            await setDoc(doc(db, "events", "tet_firework"), {
+                time: new Date(fireworkInput.value).getTime(),
+                enabled: true,
+                fired: false
+            });
+
+
+            fireworkStatus.innerText = "🎆 Đã set giờ bắn pháo hoa!";
+            showToast("Lưu sự kiện thành công 🎉", "success");
+
+        } catch (err) {
+            console.error(err);
+            showToast("Lỗi khi lưu sự kiện!", "error");
+        }
+    });
+}
+
 </script>
 </body>
 </html>
