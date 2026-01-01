@@ -241,7 +241,10 @@ fetch("nav.html").then(res => res.text())
                 <button id="saveFirework" class="action-btn btn-activate">
                     💾 Lưu thời gian
                 </button>
-
+                <a href="firework_show.html"><button>EDITOR</button></a>
+                <button id="disableFirework" class="action-btn btn-delete">
+                    🚫 Tắt sự kiện
+                </button>
                 <p id="fireworkStatus" style="margin-top:10px;color:#555"></p>
                 </div>
 
@@ -517,34 +520,63 @@ async function loadNews(){
 // 🎆 EVENT: TẾT BẮN PHÁO HOA
 // =======================
 
-import { setDoc } from 
-"https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const fireworkBtn = document.getElementById("saveFirework");
+const disableBtn = document.getElementById("disableFirework"); // Thêm biến này
 const fireworkInput = document.getElementById("fireworkTime");
 const fireworkStatus = document.getElementById("fireworkStatus");
 
+// Hàm hiển thị trạng thái hiện tại khi vừa vào tab
+async function checkFireworkStatus() {
+    const docSnap = await getDoc(doc(db, "events", "tet_firework"));
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.enabled) {
+            const date = new Date(data.time).toLocaleString();
+            fireworkStatus.innerHTML = `🟢 Trạng thái: <b>Đang bật</b><br>⏰ Giờ bắn: ${date}`;
+        } else {
+            fireworkStatus.innerHTML = `🔴 Trạng thái: <b>Đã tắt</b>`;
+        }
+    }
+}
+// Gọi hàm kiểm tra khi load xong Admin
+checkFireworkStatus();
+
+// Logic Lưu/Bật sự kiện
 if (fireworkBtn) {
     fireworkBtn.addEventListener("click", async () => {
         if (!fireworkInput.value) {
             showToast("Chưa chọn thời gian bắn pháo hoa!", "error");
             return;
         }
-
         try {
             await setDoc(doc(db, "events", "tet_firework"), {
                 time: new Date(fireworkInput.value).getTime(),
                 enabled: true,
                 fired: false
             });
-
-
-            fireworkStatus.innerText = "🎆 Đã set giờ bắn pháo hoa!";
             showToast("Lưu sự kiện thành công 🎉", "success");
+            checkFireworkStatus(); // Cập nhật lại UI
+        } catch (err) {
+            showToast("Lỗi khi lưu sự kiện!", "error");
+        }
+    });
+}
 
+// Logic TẮT sự kiện (MỚI)
+if (disableBtn) {
+    disableBtn.addEventListener("click", async () => {
+        if (!confirm("Bạn có chắc muốn TẮT sự kiện pháo hoa?")) return;
+        try {
+            await updateDoc(doc(db, "events", "tet_firework"), {
+                enabled: false
+            });
+            showToast("Đã tắt sự kiện pháo hoa!", "info");
+            checkFireworkStatus(); // Cập nhật lại UI
         } catch (err) {
             console.error(err);
-            showToast("Lỗi khi lưu sự kiện!", "error");
+            showToast("Lỗi khi tắt sự kiện!", "error");
         }
     });
 }

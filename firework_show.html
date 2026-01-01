@@ -2,99 +2,96 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Editor Pháo Hoa - 15 Phút</title>
+    <title>Editor Pháo Hoa - Chống Lỗi Console</title>
     <style>
-        body { display: flex; height: 100vh; margin: 0; background: #111; color: white; font-family: sans-serif; }
-        #panel { width: 350px; padding: 20px; background: #222; overflow-y: auto; border-right: 2px solid #444; }
-        #stage-picker { width: 100%; height: 200px; background: #000; position: relative; border: 1px solid #555; cursor: crosshair; }
-        #marker { position: absolute; width: 10px; height: 10px; background: red; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-        .section { background: #333; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-        input, select, button { width: 100%; padding: 8px; margin: 5px 0; border-radius: 4px; border: none; }
-        button { cursor: pointer; font-weight: bold; }
-        .btn-save { background: #4CAF50; color: white; }
-        .btn-load { background: #2196F3; color: white; }
-        .item { padding: 5px; border-bottom: 1px solid #555; font-size: 12px; position: relative; }
-        .del { position: absolute; right: 5px; top: 5px; color: red; cursor: pointer; }
-        #preview { flex: 1; background: #000; position: relative; }
+        body { display: flex; height: 100vh; margin: 0; background: #111; color: white; font-family: 'Segoe UI', sans-serif; }
+        #panel { width: 380px; padding: 20px; background: #222; overflow-y: auto; border-right: 2px solid #444; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
+        #stage-picker { width: 100%; height: 220px; background: #000; position: relative; border: 2px solid #555; cursor: crosshair; margin-bottom: 10px; }
+        #marker { position: absolute; width: 12px; height: 12px; background: #ff4757; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .section { background: #2f3542; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; }
+        input, select, button { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: 700; transition: 0.2s; }
+        button:hover { opacity: 0.8; transform: translateY(-1px); }
+        .btn-save { background: #2ed573; color: white; }
+        .btn-load { background: #1e90ff; color: white; margin-bottom: 10px; }
+        .item { padding: 8px; border-bottom: 1px solid #444; font-size: 13px; position: relative; display: flex; justify-content: space-between; align-items: center; }
+        .item:hover { background: #3e4451; }
+        .del { color: #ff4757; cursor: pointer; padding: 5px; font-weight: bold; }
+        #preview { flex: 1; background: #000; position: relative; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; }
+        h3 { margin-top: 0; color: #ffa502; border-bottom: 1px solid #444; padding-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div id="panel">
+    <a href="admin.html" style="text-decoration: none;"><button style="background: #57606f; color: white;">🏠 BACK TO ADMIN</button></a>
     <h3>🎆 Biên Đạo Show</h3>
-    <button class="btn-load" onclick="window.loadFromFirebase()">📂 Tải từ Server</button>
+    
+    <button class="btn-load" id="btnLoad">📂 Tải kịch bản từ Server</button>
     
     <div class="section">
-        <label>Vị trí nổ (Click khung dưới):</label>
+        <label style="font-size: 12px; color: #ced4da;">Vị trí nổ (Click khung đen):</label>
         <div id="stage-picker"><div id="marker" style="left:50%; top:30%"></div></div>
-        <input type="number" id="timeS" placeholder="Giây bắt đầu" value="0" step="0.5">
+        
+        <input type="number" id="timeS" placeholder="Giây bắt đầu" value="0" step="0.1">
         <select id="type">
-            <option value="burst">💥 Chùm tròn</option>
-            <option value="sparkle">✨ Lấp lánh</option>
-            <option value="flower">🌸 Hình hoa</option>
-            <option value="text">🔠 Nổ thành CHỮ</option>
+            <option value="burst">💥 Chùm tròn (Burst)</option>
+            <option value="sparkle">✨ Lấp lánh (Sparkle)</option>
+            <option value="flower">🌸 Hình hoa (Flower)</option>
+            <option value="text">🔠 Nổ thành CHỮ (Text)</option>
         </select>
-        <input type="text" id="textContent" placeholder="Nội dung chữ" value="TET"> <input type="number" id="loopCount" value="1" min="1" placeholder="Số lần lặp">
-        <input type="color" id="color" value="#ffff00">
-        <button onclick="window.addClip()" style="background: orange;">➕ Thêm quả pháo</button>
+        <input type="text" id="textContent" placeholder="Nội dung chữ (nếu chọn Text)" value="HAPPY NEW YEAR">
+        <input type="color" id="color" value="#ffeb3b">
+        <button id="btnAdd" style="background: #ffa502; color: white;">➕ Thêm quả pháo</button>
     </div>
 
-    <button onclick="window.previewShow()" style="background: #9c27b0; color: white;">▶ Chạy thử kịch bản</button>
-    <button class="btn-save" onclick="window.uploadShow()">🚀 Lưu lên Firebase</button>
+    <button id="btnPreview" style="background: #9c27b0; color: white;">▶ Chạy thử kịch bản</button>
+    <button class="btn-save" id="btnSave">🚀 Lưu lên Firebase</button>
     
-    <div id="list"></div>
+    <div id="list-container">
+        <p style="font-size: 11px; color: #888;">Danh sách Timeline (<span id="count">0</span>):</p>
+        <div id="list"></div>
+    </div>
 </div>
 
-<div id="preview"><canvas id="canvas"></canvas></div>
+<div id="preview">
+    <canvas id="canvas"></canvas>
+</div>
 
-<script type="module">
-    import { db, doc, setDoc, getDoc } from "./firebase.js";
+<script>
+    window.timeline = []; // Mảng chứa kịch bản (Toàn cục)
 
-    let timeline = [];
-    let curX = 0.5, curY = 0.3;
-
-    window.addClip = () => {
-        timeline.push({
-            s: parseFloat(document.getElementById('timeS').value),
-            x: curX, y: curY,
-            type: document.getElementById('type').value,
-            color: document.getElementById('color').value,
-            loopCount: parseInt(document.getElementById('loopCount').value) || 1
-        });
-        timeline.sort((a,b) => a.s - b.s);
-        renderList();
-    };
-
-    window.removeClip = (i) => { timeline.splice(i, 1); renderList(); };
-
-    window.previewShow = () => { if(window.runFireworkScript) window.runFireworkScript([...timeline]); };
-
-    window.loadFromFirebase = async () => {
-        const snap = await getDoc(doc(db, "events", "tet_firework"));
-        if(snap.exists()) {
-            timeline = snap.data().script || [];
-            renderList();
-            alert("Tải thành công!");
-        }
-    };
-
-    window.uploadShow = async () => {
-        try {
-            await setDoc(doc(db, "events", "tet_firework"), { script: timeline, time: Date.now() + 5000 });
-            alert("Lưu thành công!");
-        } catch(e) { alert("Lỗi: " + e.message); }
-    };
-
-    function renderList() {
+    // Hàm render danh sách ra UI (Toàn cục)
+    window.renderList = function() {
         const listDiv = document.getElementById('list');
-        listDiv.innerHTML = timeline.map((c, i) => `
+        const countSpan = document.getElementById('count');
+        if(!listDiv) return;
+
+        // Sắp xếp theo thời gian
+        window.timeline.sort((a, b) => a.s - b.s);
+        
+        countSpan.innerText = window.timeline.length;
+        listDiv.innerHTML = window.timeline.map((c, i) => `
             <div class="item">
-                <b>${c.s}s</b>: ${c.type} (x${c.loopCount})
-                <span class="del" onclick="window.removeClip(${i})">✖</span>
+                <span><b>${c.s}s</b> - ${c.type.toUpperCase()} <span style="color:${c.color}">●</span> ${c.text ? `'${c.text}'` : ''}</span>
+                <span class="del" onclick="removeClip(${i})">✖</span>
             </div>
         `).join('');
-    }
+    };
 
+    window.removeClip = function(i) {
+        window.timeline.splice(i, 1);
+        window.renderList();
+    };
+</script>
+
+<script type="module">
+    import { db, doc, setDoc, getDoc, updateDoc } from "./firebase.js";
+
+    let curX = 0.5, curY = 0.3;
+
+    // --- XỬ LÝ CLICK CHỌN VỊ TRÍ ---
     document.getElementById('stage-picker').onclick = (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         curX = (e.clientX - rect.left) / rect.width;
@@ -103,10 +100,58 @@
         document.getElementById('marker').style.top = (curY * 100) + "%";
     };
 
-    // Xuất ra window để Console có thể dùng
-    window.timeline = timeline;
-    window.renderList = renderList;
+    // --- THÊM PHÁO THỦ CÔNG ---
+    document.getElementById('btnAdd').onclick = () => {
+        const type = document.getElementById('type').value;
+        const newItem = {
+            s: parseFloat(document.getElementById('timeS').value) || 0,
+            x: parseFloat(curX.toFixed(3)),
+            y: parseFloat(curY.toFixed(3)),
+            type: type,
+            color: document.getElementById('color').value,
+            loopCount: 1
+        };
+        if(type === 'text') newItem.text = document.getElementById('textContent').value;
+
+        window.timeline.push(newItem);
+        window.renderList();
+    };
+
+    // --- CHẠY THỬ ---
+    document.getElementById('btnPreview').onclick = () => {
+        if(window.runFireworkScript) {
+            window.runFireworkScript([...window.timeline]);
+        } else {
+            alert("Chưa nạp được firework.js!");
+        }
+    };
+
+    // --- TẢI TỪ SERVER ---
+    document.getElementById('btnLoad').onclick = async () => {
+        const snap = await getDoc(doc(db, "events", "tet_firework"));
+        if(snap.exists()) {
+            window.timeline = snap.data().script || [];
+            window.renderList();
+            alert("Đã tải kịch bản thành công!");
+        }
+    };
+
+    // --- LƯU LÊN SERVER ---
+    document.getElementById('btnSave').onclick = async () => {
+        try {
+            await updateDoc(doc(db, "events", "tet_firework"), { 
+                script: window.timeline 
+            });
+            alert("🚀 Đã lưu kịch bản!");
+        } catch(e) {
+            await setDoc(doc(db, "events", "tet_firework"), { 
+                script: window.timeline, enabled: true, time: Date.now() 
+            }, {merge: true});
+            alert("🚀 Đã tạo mới và lưu kịch bản!");
+        }
+    };
 </script>
+
 <script src="firework.js"></script>
 </body>
 </html>

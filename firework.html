@@ -27,10 +27,21 @@
   }
   .viewer-count { color: #4caf50; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 8px; padding-bottom: 5px; }
   #viewerList { max-height: 150px; overflow-y: auto; }
+  #emptyEvent {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); display: none; flex-direction: column;
+    justify-content: center; align-items: center; z-index: 100;
+    color: white; text-align: center;
+  }
+  #emptyEvent h2 { color: #ffeb3b; }
 </style>
 </head>
 <body>
-
+<div id="emptyEvent">
+  <h2>🎆 Hiện không có sự kiện nào</h2>
+  <p>Vui lòng quay lại sau hoặc đợi thông báo từ Admin.</p>
+  <a href="index.html" style="color: #3498db; text-decoration: none; margin-top: 20px;"><button>← Quay về trang chủ</button></a>
+</div>
 <div id="title">
   <h1>CHÚC MỪNG NĂM MỚI 2025</h1>
 </div>
@@ -53,29 +64,49 @@
   const countSpan = document.getElementById("count");
   const viewerList = document.getElementById("viewerList");
 
+  const emptyEvent = document.getElementById("emptyEvent");
+  let eventTimer = null;
+
   // 1. LẤY KỊCH BẢN VÀ CHẠY PHÁO HOA
   onSnapshot(doc(db, "events", "tet_firework"), (snap) => {
-    if (!snap.exists()) return;
+    // Xóa timer cũ nếu có để tránh chạy đè
+    if (eventTimer) clearInterval(eventTimer);
+
+    if (!snap.exists() || snap.data().enabled === false) {
+      // Nếu không có dữ liệu hoặc enabled = false
+      emptyEvent.style.display = "flex";
+      cdText.innerText = "Sự kiện đã kết thúc hoặc chưa bắt đầu";
+      return;
+    }
+
+    // Nếu có sự kiện đang bật
+    emptyEvent.style.display = "none";
     const data = snap.data();
     
-    const timer = setInterval(() => {
+    eventTimer = setInterval(() => {
       const now = Date.now();
       const diff = data.time - now;
 
       if (diff <= 0) {
-        clearInterval(timer);
+        clearInterval(eventTimer);
         cdText.innerText = "🎆 CHƯƠNG TRÌNH ĐANG DIỄN RA 🎆";
+        
+        // Kiểm tra xem đã bắn chưa (fired) hoặc script có sẵn không
         if (window.runFireworkScript && !window.isPlaying) {
           window.runFireworkScript(data.script);
         }
       } else {
         const s = Math.floor(diff / 1000);
         const m = Math.floor(s / 60);
-        cdText.innerText = `🎆 Bắt đầu sau: ${m}:${(s % 60).toString().padStart(2, '0')}`;
+        const h = Math.floor(m / 60);
+        
+        let timeString = `${(m % 60)}:${(s % 60).toString().padStart(2, '0')}`;
+        if (h > 0) timeString = `${h}:` + timeString;
+
+        cdText.innerText = `🎆 Bắt đầu sau: ${timeString}`;
       }
     }, 1000);
   });
-
   // 2. HỆ THỐNG NGƯỜI XEM (FIX LỖI PERMISSION)
   auth.onAuthStateChanged(async (user) => {
     if (!user) return;
