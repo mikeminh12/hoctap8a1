@@ -1276,78 +1276,103 @@ input[type="file"] {
     color: var(--color-primary);
     min-height: 1.2em;
 }
-/* =========================================================================
- * ❄️ SNOW EFFECT - HIỆU ỨNG TUYẾT RƠI
- * ========================================================================= */
-.snowflake {
-    position: fixed;
-    top: -10px;
-    z-index: 9999;
-    user-select: none;
-    pointer-events: none;
-    color: rgba(101, 193, 255, 0.8);
-    font-size: 1em;
-    animation: fall linear infinite;
-}
+/* ======================================================
+ * 🌼 HOA MAI & 🎆 PHÁO HOA STYLE
+ * ====================================================== */
 
-@keyframes fall {
-    0% {
-        transform: translateY(-10vh) translateX(0) rotate(0deg);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(110vh) translateX(var(--drift)) rotate(360deg);
-        opacity: 0.3;
-    }
-}
-
-/* Tạo biến thể khác nhau cho tuyết */
-.snowflake:nth-child(odd) {
-    animation-duration: 15s;
-}
-.snowflake:nth-child(even) {
-    animation-duration: 20s;
-}
-.snowflake:nth-child(3n) {
-    font-size: 1em;
-    animation-duration: 18s;
-}
-.snowflake:nth-child(4n) {
-    font-size: 3em;
-    animation-duration: 22s;
-}
-.snowflake:nth-child(5n) {
-    font-size: 2em;
-    animation-duration: 16s;
-}
-
-#snow-container {
+/* --- 1. HOA MAI RƠI --- */
+#tet-container {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    overflow: hidden;
+    pointer-events: none; /* Click xuyên qua hoa */
     z-index: 9999;
 }
-/* EFFECT CLICK */
-.snow-burst {
-    position: fixed;
-    pointer-events: none;
+
+.hoamai {
+    position: absolute; /* Dùng absolute trong container fixed */
+    color: #ffde59; /* Vàng hoa mai */
+    font-size: 1.5em;
     user-select: none;
-    z-index: 10000;
-    animation: burst 2s ease-out forwards;
-    color: rgba(180, 230, 255, 0.9);
+    pointer-events: none;
+    text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
+    /* Animation: Rơi + Lắc lư */
+    animation: fall-sway linear infinite;
 }
 
-@keyframes burst {
+@keyframes fall-sway {
     0% {
-        transform: translate(0, 0) scale(1) rotate(0deg);
+        transform: translateY(-10vh) rotate(0deg);
         opacity: 1;
     }
     100% {
-        transform: translate(var(--x), var(--y)) scale(0.2) rotate(360deg);
+        /* Rơi xuống quá màn hình + trôi ngang theo biến --drift */
+        transform: translateY(110vh) translateX(var(--drift)) rotate(180deg);
         opacity: 0;
+    }
+}
+
+/* --- 2. PHÁO HOA NỔ (ĐÃ FIX LỖI) --- */
+/* ======================================================
+ * 🚀 ROCKET UPGRADE - HIỆU ỨNG TÊN LỬA
+ * ====================================================== */
+.firework-rocket {
+    position: fixed;
+    width: 3px;
+    height: 20px;
+    background: #fff;
+    box-shadow: 0 0 15px #fff;
+    z-index: 9999;
+    pointer-events: none;
+    /* Giảm thời gian xuống 0.3s để bay "vút" lên */
+    animation: rocketFly 0.3s linear forwards;
+}
+
+@keyframes rocketFly {
+    from { transform: translate(-50%, 0); opacity: 1; }
+    to   { transform: translate(-50%, var(--flyY)); opacity: 1; }
+}
+
+/* Đuôi lửa nhấp nháy đa sắc */
+.firework-rocket::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    width: 6px;
+    height: 30px;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, #fff, #ffae00, transparent);
+    filter: blur(1px);
+}
+
+/* ======================================================
+ * 🎆 PARTICLE UPGRADE - HẠT PHÁO HOA
+ * ====================================================== */
+.firework-particle {
+    position: fixed;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    z-index: 10000;
+    pointer-events: none;
+    /* Animation nổ bung mạnh mẽ */
+    animation: explodeSlow 1.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes explodeSlow {
+    0% { 
+        transform: translate(0, 0) scale(1); 
+        opacity: 1; 
+        filter: brightness(2);
+    }
+    80% {
+        opacity: 0.8; /* Giữ hạt sáng lâu hơn một chút */
+    }
+    100% { 
+        transform: translate(var(--x), var(--y)) scale(0.2); 
+        opacity: 0; 
     }
 }
