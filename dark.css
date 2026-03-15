@@ -40,7 +40,7 @@
 
 body {
     /* Thêm font Poppins nếu bạn đang dùng: @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap'); */
-    font-family: 'Poppins', sans-serif; 
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--color-light-bg); /* Nền tối */
     color: #f0f0f0; /* Chữ sáng trên nền tối */
     min-height: 100vh;
@@ -258,21 +258,8 @@ button:hover, .btn-card:hover, .read-more:hover {
 #postBtn { display: none; }
 
 /* Nút Xám Tro (Phụ/Quay lại) */
-.back-btn {
-    margin-bottom: 20px;
-    background: var(--color-neutral);
-    color: var(--color-dark); /* Chữ đen trên nền xám */
-    padding: 10px 18px;
-    border-radius: var(--border-radius-sm);
-    font-weight: 500;
-    box-shadow: none;
-    border: none;
-}
-.back-btn:hover {
-    background: #808080;
-    transform: none;
-    box-shadow: none;
-}
+
+
 
 .card .btn-card, .read-more {
     margin-top: 10px;
@@ -442,16 +429,8 @@ img#preview {
     margin-bottom: 15px;
     font-size: 0.9rem;
 }
-.post-form-link { 
-    display: inline-block;
-    margin-bottom: 15px;
-    color: var(--color-primary);
-    text-decoration: none;
-    font-weight: 500;
-}
-.post-form-link:hover {
-    text-decoration: underline;
-}
+
+
 
 /* File Input Custom - Giữ nguyên */
 input[type="file"] {
@@ -1276,103 +1255,42 @@ input[type="file"] {
     color: var(--color-primary);
     min-height: 1.2em;
 }
-/* ======================================================
- * 🌼 HOA MAI & 🎆 PHÁO HOA STYLE
- * ====================================================== */
-
-/* --- 1. HOA MAI RƠI --- */
-#tet-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* Click xuyên qua hoa */
-    z-index: 9999;
+/* ===== Cập nhật Nút Quay Lại (Back Button UX) ===== */
+.back-btn, .post-form-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 25px;
+    background: var(--color-card-bg);
+    color: var(--color-dark);
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    border: 1px solid var(--color-border);
+    border-radius: 50px;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.hoamai {
-    position: absolute; /* Dùng absolute trong container fixed */
-    color: #ffde59; /* Vàng hoa mai */
-    font-size: 1.5em;
-    user-select: none;
-    pointer-events: none;
-    text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
-    /* Animation: Rơi + Lắc lư */
-    animation: fall-sway linear infinite;
+.back-btn:hover, .post-form-link:hover {
+    color: white;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    transform: translateX(-4px) translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3) !important;
 }
 
-@keyframes fall-sway {
-    0% {
-        transform: translateY(-10vh) rotate(0deg);
-        opacity: 1;
-    }
-    100% {
-        /* Rơi xuống quá màn hình + trôi ngang theo biến --drift */
-        transform: translateY(110vh) translateX(var(--drift)) rotate(180deg);
-        opacity: 0;
-    }
+.back-btn::before, .post-form-link::before {
+    content: '←';
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
 }
 
-/* --- 2. PHÁO HOA NỔ (ĐÃ FIX LỖI) --- */
-/* ======================================================
- * 🚀 ROCKET UPGRADE - HIỆU ỨNG TÊN LỬA
- * ====================================================== */
-.firework-rocket {
-    position: fixed;
-    width: 3px;
-    height: 20px;
-    background: #fff;
-    box-shadow: 0 0 15px #fff;
-    z-index: 9999;
-    pointer-events: none;
-    /* Giảm thời gian xuống 0.3s để bay "vút" lên */
-    animation: rocketFly 0.3s linear forwards;
+.back-btn:hover::before, .post-form-link:hover::before {
+    transform: translateX(-4px);
 }
 
-@keyframes rocketFly {
-    from { transform: translate(-50%, 0); opacity: 1; }
-    to   { transform: translate(-50%, var(--flyY)); opacity: 1; }
-}
+input, textarea, select, button { font-family: inherit; }
 
-/* Đuôi lửa nhấp nháy đa sắc */
-.firework-rocket::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    width: 6px;
-    height: 30px;
-    transform: translateX(-50%);
-    background: linear-gradient(to bottom, #fff, #ffae00, transparent);
-    filter: blur(1px);
-}
-
-/* ======================================================
- * 🎆 PARTICLE UPGRADE - HẠT PHÁO HOA
- * ====================================================== */
-.firework-particle {
-    position: fixed;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    z-index: 10000;
-    pointer-events: none;
-    /* Animation nổ bung mạnh mẽ */
-    animation: explodeSlow 1.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-}
-
-@keyframes explodeSlow {
-    0% { 
-        transform: translate(0, 0) scale(1); 
-        opacity: 1; 
-        filter: brightness(2);
-    }
-    80% {
-        opacity: 0.8; /* Giữ hạt sáng lâu hơn một chút */
-    }
-    100% { 
-        transform: translate(var(--x), var(--y)) scale(0.2); 
-        opacity: 0; 
-    }
-}
