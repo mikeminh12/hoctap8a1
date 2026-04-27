@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, query, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // --- Hàm hiển thị thông báo Toast ---
 function showToast(message, type = 'success') {
@@ -116,7 +116,7 @@ function updateMiniProfile(userData) {
 // ================= DANH SÁCH BÀI THI =================
 async function loadQuizzes() {
     const list = document.getElementById('quizList');
-    list.innerHTML = '⏳ Đang tải...';
+    list.innerHTML = '<div style="text-align:center; padding: 20px; color:#95a5a6;">⏳ Đang tải danh sách bài thi...</div>';
     
     try {
         const q = query(collection(db, "quizzes"), orderBy("createdAt", "desc"));
@@ -124,13 +124,16 @@ async function loadQuizzes() {
         list.innerHTML = '';
 
         if (snap.empty) {
-            list.innerHTML = '<p style="color:#7f8c8d;">Hiện chưa có bài tập nào.</p>';
+            list.innerHTML = '<p style="text-align:center; color:#7f8c8d; padding: 20px;">Hiện chưa có bài tập nào.</p>';
             return;
         }
 
         for (const docSnap of snap.docs) {
             const d = docSnap.data();
-            const historySnap = await getDoc(doc(db, `users/${currentUser.uid}/completed_quizzes`, docSnap.id));
+            const quizId = docSnap.id;
+            
+            // Lấy lịch sử làm bài
+            const historySnap = await getDoc(doc(db, `users/${currentUser.uid}/completed_quizzes`, quizId));
             const historyData = historySnap.exists() ? historySnap.data() : null;
             
             const attemptsDone = historyData ? (historyData.attempts || 1) : 0;
@@ -140,28 +143,79 @@ async function loadQuizzes() {
             const div = document.createElement('div');
             div.className = 'quiz-card';
             div.style.borderLeft = attemptsDone > 0 ? "5px solid #2ecc71" : "5px solid #3498db";
+            // Thêm chút style để card nhìn gọn gàng hơn
+            div.style.padding = "15px";
+            div.style.marginBottom = "15px";
+            div.style.background = "#fff";
+            div.style.borderRadius = "8px";
+            div.style.boxShadow = "0 2px 4px rgba(0,0,0,0.05)";
+
+            // Xây dựng khối HTML chứa các nút bấm
+            let buttonsHTML = '';
+            
+            if (attemptsDone > 0) {
+                buttonsHTML += `<button class="action-btn btn-delete" style="background:#e0e6ed; color:#2c3e50; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer;" onclick="window.location.href='quizing.html?id=${quizId}&mode=review'">👁️ Xem lại</button>`;
+            }
+            
+            if (canDoMore) {
+                buttonsHTML += `<button class="action-btn btn-view" style="background:#3498db; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer;" onclick="window.location.href='quizing.html?id=${quizId}'">▶️ ${attemptsDone > 0 ? 'Làm tiếp' : 'Bắt đầu'}</button>`;
+            }
+
+            // Nút Chơi Solo được thêm vào đây
+            buttonsHTML += `<button class="action-btn" style="background:#e67e22; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer;" onclick="createSoloRoom('${quizId}')">⚔️ Chơi Solo</button>`;
 
             div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 15px;">
                     <div>
                         <h3 style="margin:0; font-size:1.15rem; color:#2c3e50;">${d.title} ${attemptsDone > 0 ? '✅' : ''}</h3>
                         <p style="margin:8px 0 0 0; color:#7f8c8d; font-size:0.9rem;">
-                            🪙 Thưởng: <b>${d.tokenReward}</b> | ⏰ ${d.timeLimit || 15}p | 🔄 Lượt: ${attemptsDone}/${limit}
+                            🪙 Thưởng: <b style="color:#f39c12;">${d.tokenReward || 0}</b> | ⏰ ${d.timeLimit || 15}p | 🔄 Lượt: ${attemptsDone}/${limit}
                         </p>
                     </div>
-                    <div style="display:flex; gap:10px;">
-                        ${attemptsDone > 0 ? `<button class="action-btn btn-delete" style="background:#e0e6ed; color:#2c3e50; border:none;" onclick="window.location.href='quizing.html?id=${docSnap.id}&mode=review'">👁️ Xem lại</button>` : ''}
-                        ${canDoMore ? `<button class="action-btn btn-view" onclick="window.location.href='quizing.html?id=${docSnap.id}'">▶️ ${attemptsDone > 0 ? 'Làm tiếp' : 'Bắt đầu'}</button>` : ''}
+                    <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                        ${buttonsHTML}
                     </div>
                 </div>
             `;
             list.appendChild(div);
         }
     } catch (err) {
-        list.innerHTML = '<p style="color:red;">Lỗi tải bài thi.</p>';
-        console.error(err);
+        list.innerHTML = '<p style="color:#e74c3c; text-align:center; padding: 20px;">❌ Lỗi tải bài thi. Vui lòng thử lại.</p>';
+        console.error("Lỗi khi load danh sách quiz:", err);
     }
 }
+
+// ================= TẠO PHÒNG CHƠI SOLO =================
+// Dùng window. để có thể gọi được từ hàm onclick dạng string trong innerHTML
+window.createSoloRoom = async function(quizId) {
+    if (!currentUser) return showToast("Vui lòng đăng nhập!", "error");
+    
+    // Tạo ID phòng ngẫu nhiên 6 ký tự
+    const roomId = 'ROOM_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    try {
+        showToast("Đang tạo phòng...", "info");
+        
+        // Lưu thông tin phòng lên Firestore
+        // Lưu ý: Đảm bảo bạn đã import setDoc từ firebase-firestore.js ở đầu file quiz.js
+        await setDoc(doc(db, "rooms", roomId), {
+            roomId: roomId,
+            quizId: quizId,
+            hostId: currentUser.uid,
+            status: 'waiting', 
+            currentQuestion: 0,
+            questionStartTime: null,
+            winner: null,
+            createdAt: new Date()
+        });
+
+        // Chuyển hướng vào phòng chờ
+        window.location.href = `quiz-solo.html?room=${roomId}`;
+    } catch (err) {
+        console.error("Lỗi tạo phòng:", err);
+        showToast("Lỗi tạo phòng: " + err.message, "error");
+    }
+};
 
 // ================= BẢNG XẾP HẠNG =================
 // ================= BẢNG XẾP HẠNG HIỆN ĐẠI =================
