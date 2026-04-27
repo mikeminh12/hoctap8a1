@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phòng Thi Trắc Nghiệm</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { background: #f4f7f9; }
+        .option-btn { display: block; width: 100%; text-align: left; background: #fff; border: 2px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; cursor: pointer; font-size: 1.05rem; transition: 0.2s; }
+        .option-btn:hover { background: #f8fafc; border-color: #bdc3c7; }
+        .option-btn.selected { background: #e8f0fe; color: var(--color-primary); border-color: var(--color-primary); font-weight: bold; }
+        .option-btn.correct { background: #d4edda; border-color: #28a745; color: #155724; cursor: default; }
+        .option-btn.wrong { background: #f8d7da; border-color: #dc3545; color: #721c24; cursor: default; }
+    </style>
+</head>
+<body oncontextmenu="return false;"> 
+    <div id="toast-container" class="toast-container"></div>
+    
+    <div class="container" style="max-width: 1100px;">
+        <h2 id="qTitle" style="margin-top: 30px; color: var(--color-primary);">Đang tải dữ liệu...</h2>
+        
+        <div class="quiz-layout">
+            <div class="quiz-sidebar">
+                <div class="status-badge status-timer" id="timerContainer">
+                    <span>⏱️ Thời gian</span>
+                    <span id="timer">--:--</span>
+                </div>
+                <div class="status-badge status-anticheat" id="antiCheatBadge" style="display:none;">
+                    🛡️ Giám sát chống thoát trang
+                </div>
+                
+                <h4 style="margin: 15px 0 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Danh sách câu hỏi</h4>
+                <div id="navGrid" class="q-nav-grid"></div>
+                
+                <button id="submitBtn" class="btn-login" style="width:100%; padding:15px; margin-top:20px; font-size:1.1rem; box-shadow: 0 4px 15px rgba(52,152,219,0.3);">📥 NỘP BÀI</button>
+                <button id="backBtn" class="btn-signup" style="width:100%; padding:15px; margin-top:10px; display:none; background:#95a5a6;">🔙 Quay lại</button>
+            </div>
+
+            <div class="quiz-main">
+                <div id="questionContent">
+                    <p style="text-align:center; color:#7f8c8d;">Đang xử lý đề thi...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase.js';
+        import { doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '💡'}</span> ${message}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); toast.addEventListener('transitionend', () => toast.remove()); }, 3000);
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizId = urlParams.get('id');
+        const isReviewMode = urlParams.get('mode') === 'review';
+        
+        let timeLeft, timerInterval, quizData;
+        let shuffledQuestions = []; // Đề đã được random
+        let userAnswers = {}; // Lưu đáp án đã chọn
+        let currentVisualIndex = 0; // Đang xem câu nào
+
+        auth.onAuthStateChanged(async user => {
+            if (!user) return window.location.href = 'login.html';
+            
+            const snap = await getDoc(doc(db, "quizzes", quizId));
+            if (!snap.exists()) return showToast("Không tìm thấy đề!", "error");
+            quizData = snap.data();
+
+            if (isReviewMode) {
+                const historySnap = await getDoc(doc(db, `users/${user.uid}/completed_quizzes`, quizId));
+                if (historySnap.exists()) {
+                    const data = historySnap.data();
+                    userAnswers = data.userAnswers || {};
+                    // Lấy đúng thứ tự câu hỏi đã random lúc thi
+                    shuffledQuestions = data.savedOrder || quizData.questions; 
+                    initLayout(user, true);
+                } else {
+                    showToast("Bạn chưa làm bài này!", "error");
+                }
+            } else {
+                // Xóa trộn đề và đáp án khi làm bài mới
+                shuffledQuestions = [...quizData.questions].sort(() => Math.random() - 0.5);
+                shuffledQuestions.forEach(q => q.options.sort(() => Math.random() - 0.5));
+                initLayout(user, false);
+            }
+        });
+
+        function initLayout(user, reviewMode) {
+            document.getElementById('qTitle').innerText = reviewMode ? `👁️ Xem lại: ${quizData.title}` : `📝 ${quizData.title}`;
+            
+            if (reviewMode) {
+                document.getElementById('timerContainer').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'none';
+                document.getElementById('backBtn').style.display = 'block';
+                document.getElementById('backBtn').onclick = () => window.location.href = 'quiz.html';
+            } else {
+                if (quizData.antiCheat) {
+                    document.getElementById('antiCheatBadge').style.display = 'flex';
+                    window.onblur = () => {
+                        showToast("⚠️ BẠN ĐÃ THOÁT TRANG! BÀI THI BỊ HỦY.", "error");
+                        setTimeout(() => submitQuiz(user, 0), 1000);
+                    };
+                }
+
+                timeLeft = (quizData.timeLimit || 15) * 60;
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    let m = Math.floor(timeLeft / 60); let s = timeLeft % 60;
+                    document.getElementById('timer').innerText = `${m}:${s < 10 ? '0'+s : s}`;
+                    if (timeLeft <= 0) submitQuiz(user);
+                }, 1000);
+
+                document.getElementById('submitBtn').onclick = () => {
+                    if(Object.keys(userAnswers).length < shuffledQuestions.length) {
+                        if(!confirm("Bạn chưa làm hết các câu, vẫn muốn nộp bài?")) return;
+                    }
+                    submitQuiz(user);
+                };
+            }
+
+            // Mặc định chọn câu 1
+            currentVisualIndex = 0;
+            renderNavGrid(reviewMode);
+            renderCurrentQuestion(reviewMode);
+        }
+
+        // Vẽ lưới ô bên trái
+        window.renderNavGrid = function(reviewMode = false) {
+            const grid = document.getElementById('navGrid');
+            grid.innerHTML = '';
+            shuffledQuestions.forEach((q, i) => {
+                let cls = 'q-nav-card';
+                if (i === currentVisualIndex) cls += ' active';
+                
+                if (reviewMode) {
+                    // Xem lại: Đánh dấu đúng/sai
+                    if (userAnswers[i] === q.correctAnswer) cls += ' correct';
+                    else cls += ' incorrect';
+                } else {
+                    // Đang làm: Đánh dấu đã chọn
+                    if (userAnswers[i]) cls += ' answered';
+                }
+
+                grid.innerHTML += `<div class="${cls}" onclick="changeQuestion(${i}, ${reviewMode})">${i + 1}</div>`;
+            });
+        };
+
+        // Bấm qua lại giữa các câu
+        window.changeQuestion = function(index, reviewMode) {
+            currentVisualIndex = index;
+            renderNavGrid(reviewMode);
+            renderCurrentQuestion(reviewMode);
+        };
+
+        // Vẽ nội dung câu hỏi bên phải
+        window.renderCurrentQuestion = function(reviewMode = false) {
+            const container = document.getElementById('questionContent');
+            const q = shuffledQuestions[currentVisualIndex];
+            
+            let html = `<h3 style="margin-top:0; color:#2c3e50;">Câu ${currentVisualIndex + 1}: ${q.text}</h3><div style="margin-top: 20px;">`;
+            
+            q.options.forEach(opt => {
+                const safeOpt = opt.replace(/'/g, "\\'");
+                let cls = 'option-btn';
+                let label = '';
+                
+                if (reviewMode) {
+                    if (opt === q.correctAnswer) { cls += ' correct'; label = ' ✔️ (Đúng)'; }
+                    else if (opt === userAnswers[currentVisualIndex]) { cls += ' wrong'; label = ' ❌ (Bạn chọn)'; }
+                    html += `<div class="${cls}">${opt}${label}</div>`;
+                } else {
+                    if (opt === userAnswers[currentVisualIndex]) cls += ' selected';
+                    html += `<div class="${cls}" onclick="selectOpt(${currentVisualIndex}, '${safeOpt}')">${opt}</div>`;
+                }
+            });
+            html += `</div>`;
+            container.innerHTML = html;
+        };
+
+        // Học sinh chọn đáp án
+        window.selectOpt = function(qIndex, val) {
+            userAnswers[qIndex] = val;
+            renderNavGrid(false);
+            renderCurrentQuestion(false);
+        };
+
+        async function submitQuiz(user, forcedScore = null) {
+            clearInterval(timerInterval);
+            window.onblur = null; // Tắt chống thoát
+
+            let score = 0;
+            if (forcedScore === null) {
+                shuffledQuestions.forEach((q, i) => {
+                    if (userAnswers[i] === q.correctAnswer) score++;
+                });
+            }
+
+            const earned = Math.floor((score / shuffledQuestions.length) * quizData.tokenReward);
+            showToast("Đang xử lý kết quả...", "info");
+
+            try {
+                // QUAN TRỌNG: Lưu lại shuffledQuestions để mode Review mở ra đúng thứ tự
+                await setDoc(doc(db, `users/${user.uid}/completed_quizzes`, quizId), {
+                    score, earned, userAnswers, savedOrder: shuffledQuestions, attempts: increment(1), date: new Date()
+                }, { merge: true });
+
+                await updateDoc(doc(db, "users", user.uid), { tokens: increment(earned) });
+
+                showToast(`Nộp bài xong! Đúng ${score}/${shuffledQuestions.length} câu.`, "success");
+                setTimeout(() => window.location.href = 'quiz.html', 2500);
+            } catch (err) {
+                showToast("Lỗi nộp bài!", "error");
+            }
+        }
+    </script>
+</body>
+</html>

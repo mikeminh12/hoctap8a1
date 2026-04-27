@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Học Tập 8A1 - Trắc Nghiệm</title>
+  <link id="theme-style" rel="stylesheet" href="style.css">
+  <link rel="icon" href="8A1.png" type="image/png">
+  <style>
+    body { background: #f0f4f8; }
+    
+    /* ========================================= */
+    /* BỐ CỤC DASHBOARD CHUNG                    */
+    /* ========================================= */
+    .dashboard-container {
+        display: flex;
+        gap: 25px;
+        max-width: 1300px;
+        margin: 30px auto;
+        padding: 0 20px;
+        align-items: flex-start;
+    }
+
+    .dashboard-sidebar {
+        flex: 0 0 320px;
+        position: sticky;
+        top: 20px;
+    }
+
+    .dashboard-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: white; 
+        border-radius: 16px;
+        padding: 30px;
+        border: 1px solid #e0e6ed;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    /* ========================================= */
+    /* CỘT TRÁI: PROFILE CARD                    */
+    /* ========================================= */
+    .profile-card-vertical {
+        background: white;
+        border-radius: 16px;
+        padding: 25px;
+        text-align: center;
+        border: 1px solid #e0e6ed;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .profile-card-vertical img {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        margin-bottom: 15px;
+        border: 4px solid #f8fafc;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        object-fit: cover;
+    }
+
+    .level-info-group { text-align: left; margin-top: 20px; }
+    .level-label-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; }
+
+    /* ========================================= */
+    /* CỘT TRÁI: LEADERBOARD HIỆN ĐẠI            */
+    /* ========================================= */
+    .mini-leaderboard {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid #e0e6ed;
+        margin-top: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        position: relative; /* Sửa lỗi cắt Tooltip */
+    }
+
+    .mini-leaderboard-header {
+        background: linear-gradient(135deg, var(--color-primary), #2980b9);
+        color: white;
+        padding: 15px;
+        font-weight: bold;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-radius: 16px 16px 0 0; /* Bo góc thủ công */
+        position: relative;
+        z-index: 1; /* Thấp hơn tooltip */
+    }
+
+    /* Từng dòng của Bảng xếp hạng */
+    .lb-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #f4f7f9;
+        transition: background 0.2s ease;
+        position: relative; /* Dùng để đẩy tooltip lên trên */
+    }
+    .lb-item:hover { background: #f8fafc; }
+    .lb-item:last-child { border-bottom: none; border-radius: 0 0 16px 16px; }
+
+    .lb-rank { width: 30px; text-align: center; font-weight: 800; font-size: 1rem; color: #95a5a6; }
+    .lb-rank.top-1 { font-size: 1.6rem; }
+    .lb-rank.top-2 { font-size: 1.4rem; }
+    .lb-rank.top-3 { font-size: 1.2rem; }
+
+    .lb-avatar {
+        width: 42px; height: 42px; border-radius: 50%;
+        object-fit: cover; margin: 0 15px 0 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background: #eee; /* Màu nền dự phòng nếu ảnh lỗi */
+    }
+
+    .lb-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .lb-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+    .lb-level { font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+    .lb-tokens {
+        font-weight: 800; color: #f39c12; font-size: 1.1rem; text-align: right;
+        background: #fff8e1; padding: 5px 10px; border-radius: 8px; border: 1px solid #fdebd0;
+    }
+
+    /* Tooltip Neon */
+/* Tooltip Neon bám chuột (Đã sửa lỗi bị che) */
+    .user-name-wrapper { position: relative; cursor: pointer; }
+    
+    .level-tooltip {
+        position: fixed; /* Bắt buộc dùng fixed để tách hẳn ra khỏi khung Leaderboard */
+        background: rgba(44, 62, 80, 0.8);
+        color: white; 
+        padding: 12px; 
+        border-radius: 8px;
+        width: 220px; 
+        height: fit-content;
+        font-size: 0.85rem; 
+        display: none; 
+        z-index: 999999; /* Số siêu lớn để luôn đè lên mọi thứ */
+        box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        pointer-events: none; /* Tránh cản trở thao tác chuột */
+        margin: 0;
+        transform: none; /* Xóa các transform cũ để tránh lệch tọa độ */
+    }
+    /* ========================================= */
+    /* CỘT PHẢI: KHU VỰC BÀI TẬP                 */
+    /* ========================================= */
+    .main-header { border-bottom: 2px dashed #eee; padding-bottom: 15px; margin-bottom: 25px; }
+
+    .quiz-card {
+        background: #f8fafc; 
+        border: 1px solid #e0e6ed; padding: 20px;
+        border-radius: 12px; margin-bottom: 15px; transition: all 0.3s ease;
+    }
+    .quiz-card:hover {
+        background: #ffffff; box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+        transform: translateY(-2px); border-color: #ccd1d9;
+    }
+
+    @media (max-width: 992px) {
+        .dashboard-container { flex-direction: column; }
+        .dashboard-sidebar { flex: 1; width: 100%; position: static; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="navbar"></div>
+  <script type="module">
+    fetch("nav.html").then(res => res.text()).then(html => {
+      document.getElementById("navbar").innerHTML = html; import('./nav.js');
+    });
+  </script>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="dashboard-container">
+    
+    <aside class="dashboard-sidebar">
+      <div class="profile-card-vertical" id="mini-profile" style="display:none;">
+          <img id="myAvatar" src="non.png" alt="Avatar" onerror="this.src='non.png'">
+          <h3 id="myName" style="margin: 0 0 5px 0;">Đang tải...</h3>
+          <div id="myLevelBadge" class="neon-text" style="font-size: 0.9rem;">CẤP ĐỘ</div>
+          
+          <div class="level-info-group">
+              <div class="level-label-row">
+                  <span style="color: #f39c12;">🪙 <span id="myTokens">0</span></span>
+                  <span id="nextLevelInfo" style="font-size: 0.75rem; color: #7f8c8d;">Tiếp theo: --</span>
+              </div>
+              <div class="level-container">
+                  <div id="myLevelBar" class="level-bar"></div>
+              </div>
+          </div>
+      </div>
+
+      <div class="mini-leaderboard">
+          <div class="mini-leaderboard-header">🏆 TOP 10 HỌC TẬP</div>
+          <div id="leaderboardBody">
+              <div style="text-align: center; padding: 30px; color: #95a5a6; font-size: 0.95rem;">
+                  ⏳ Đang tải dữ liệu...
+              </div>
+          </div>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
+      <div class="main-header">
+          <h2 style="margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 10px;">
+              📝 Bài Tập & Trắc Nghiệm
+          </h2>
+          <p style="margin: 5px 0 0 0; color: #7f8c8d; font-size: 0.95rem;">Hoàn thành các bài tập dưới đây để tích lũy Token và thăng cấp!</p>
+      </div>
+      
+      <div id="quizList">
+          <div style="text-align: center; padding: 40px; color: #95a5a6;">
+              ⏳ Đang tải danh sách bài tập...
+          </div>
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="quiz.js"></script>
+</body>
+</html>

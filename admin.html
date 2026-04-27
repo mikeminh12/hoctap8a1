@@ -2,9 +2,10 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>👑 Bảng điều khiển Admin</title>
 <link id="theme-style" rel="stylesheet" href="style.css">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
 <style>
 /* Container */
 .admin-container {
@@ -117,9 +118,33 @@
         min-width: 140px;
     }
 }
+/* --- GIAO DIỆN TẠO QUIZ --- */
+.quiz-settings-card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e0e6ed; }
+.quiz-settings-card h3 { margin-top: 0; padding-bottom: 15px; border-bottom: 2px dashed #eee; color: var(--color-primary); }
+.quiz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.quiz-grid .full-width { grid-column: span 2; }
+
+.quiz-input-group label { font-weight: 600; margin-bottom: 8px; display: block; color: #34495e; font-size: 0.95rem; }
+.quiz-input-group input, .quiz-input-group select { width: 100%; padding: 12px; border: 1px solid #ccd1d9; border-radius: 8px; transition: 0.3s; background: #f8fafc; }
+.quiz-input-group input:focus, .quiz-input-group select:focus { border-color: var(--color-primary); background: #fff; outline: none; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
+
+/* Card câu hỏi */
+.question-card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); margin-bottom: 20px; border: 1px solid #e0e6ed; border-left: 5px solid var(--color-primary); }
+.question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+.question-header h4 { margin: 0; color: #2c3e50; font-size: 1.1rem; }
+
+/* Lưới đáp án */
+.answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+.opt-row { display: flex; align-items: stretch; }
+.opt-row span { display: flex; align-items: center; justify-content: center; width: 40px; font-weight: bold; background: #e8f0fe; color: var(--color-primary); border-radius: 8px 0 0 8px; border: 1px solid #ccd1d9; border-right: none; }
+.opt-row input { flex: 1; border-radius: 0 8px 8px 0 !important; }
+
+/* Action Buttons */
+.quiz-actions-top { display: flex; gap: 10px; margin-bottom: 25px; justify-content: center; background: #fff; padding: 15px; border-radius: 12px; border: 1px dashed #ccc; }
+.quiz-actions-bottom { display: flex; gap: 15px; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; }
 </style>
+  <link rel="icon" href="8A1.png" type="image/png">
 </head>
-<script src="snow.js"></script>
 <body>
 <div id="navbar"></div>
 <script type="module">
@@ -141,6 +166,7 @@ fetch("nav.html").then(res => res.text())
             <button class="tab-btn" data-tab="news">📰 Tin tức</button>
             <button class="tab-btn" data-tab="website">🌐 Quản lý Web</button>
             <button class="tab-btn" data-tab="event">Sự kiện</button>
+            <button class="tab-btn" data-tab="quiz">📝 Quản lý Quiz</button>
         </div>
 
         <div id="tab-users" class="tab-content active">
@@ -249,8 +275,78 @@ fetch("nav.html").then(res => res.text())
                 </div>
 
         </div>
+        <button class="tab-btn" data-tab="levels">🛡️ Quản lý Level</button>
+
+<div id="tab-levels" class="tab-content">
+    <h2>Cấu hình Cấp độ (Level)</h2>
+    <div class="quiz-settings-card">
+        <div class="quiz-grid">
+            <div class="quiz-input-group">
+                <label>Tên Level</label>
+                <input type="text" id="lvName" placeholder="VD: Tân Thủ">
+            </div>
+            <div class="quiz-input-group">
+                <label>Số Token yêu cầu</label>
+                <input type="number" id="lvThreshold" placeholder="VD: 500">
+            </div>
+            <div class="quiz-input-group full-width">
+                <label>Màu sắc Level (Chọn màu sáng để hiệu ứng Neon đẹp hơn)</label>
+                <input type="color" id="lvColor" value="#3498db" style="height: 50px;">
+            </div>
+        </div>
+        <button id="saveLevel" class="action-btn btn-view" style="margin-top:15px; width:100%;">➕ Thêm / Cập nhật Level</button>
     </div>
+    <div id="levels-list-admin"></div>
 </div>
+        <div id="tab-quiz" class="tab-content">
+    <h2>Quản lý Trắc nghiệm (Quiz)</h2>
+    <button id="btnCreateQuiz" class="action-btn btn-view">➕ Tạo Quiz Mới</button>
+    <div id="quiz-list-admin" style="margin-top: 15px;"></div>
+    
+<div id="quizFormContainer" style="display:none; margin-top:20px;">
+    
+    <div class="quiz-settings-card">
+        <h3 id="quizFormTitle">✨ Tạo Quiz Mới</h3>
+        <div class="quiz-grid">
+            <div class="quiz-input-group full-width">
+                <label>📝 Tiêu đề bài Quiz</label>
+                <input type="text" id="qTitle" placeholder="Nhập tiêu đề (VD: Kiểm tra 15 phút Toán)">
+            </div>
+            <div class="quiz-input-group">
+                <label>🪙 Token thưởng</label>
+                <input type="number" id="qReward" placeholder="VD: 50" min="0">
+            </div>
+            <div class="quiz-input-group">
+                <label>⏰ Thời gian (phút)</label>
+                <input type="number" id="qTime" value="15" min="1">
+            </div>
+            <div class="quiz-input-group">
+                <label>🔄 Số lần làm tối đa</label>
+                <input type="number" id="qLimit" value="1" min="1">
+            </div>
+            <div class="quiz-input-group" style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="qAntiCheat" style="width:24px; height:24px; cursor:pointer;">
+                <label for="qAntiCheat" style="margin:0; cursor:pointer; user-select:none;">🚫 Hủy bài nếu chuyển Tab</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="quiz-actions-top">
+        <button type="button" id="addAbcd" class="action-btn btn-view" style="background:#2ecc71; padding:10px 20px;">➕ Thêm câu Trắc Nghiệm (ABCD)</button>
+        <button type="button" id="addTf" class="action-btn btn-view" style="background:#f39c12; padding:10px 20px;">➕ Thêm câu Đúng/Sai</button>
+    </div>
+
+    <div id="questionsContainer"></div>
+
+    <div class="quiz-actions-bottom">
+        <button type="button" id="saveQuiz" class="action-btn btn-view" style="flex:2; font-size:1.1rem; padding:15px; box-shadow: 0 4px 10px rgba(52,152,219,0.3);">💾 LƯU BÀI QUIZ</button>
+        <button type="button" id="cancelQuiz" class="action-btn btn-delete" style="flex:1; font-size:1.1rem; padding:15px;">❌ Hủy bỏ</button>
+    </div>
+    
+</div>
+
+</div>
+
 
 <script type="module">
 import { auth, db } from './firebase.js';
@@ -580,7 +676,344 @@ if (disableBtn) {
         }
     });
 }
+import {addDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+// Lưu ý: Đảm bảo bạn đã import `db` từ firebase.js của bạn
 
+// ==========================================
+// 1. BIẾN TOÀN CỤC (GLOBAL VARIABLES)
+// ==========================================
+window.currentQuestions = []; // Lưu trữ danh sách câu hỏi hiện tại
+window.editingQuizId = null;  // Lưu ID của bài Quiz đang được chỉnh sửa (nếu có)
+
+// ==========================================
+// 2. HÀM VẼ GIAO DIỆN FORM CÂU HỎI
+// ==========================================
+window.editingQuestionIndex = -1; // -1: Chưa chọn câu nào
+
+window.renderQuestionsForm = function() {
+    const container = document.getElementById('questionsContainer');
+    if (!container) return;
+    
+    // 1. Vẽ Grid Điều hướng (Các Card số 1, 2, 3...)
+    let html = `<div class="q-nav-grid">`;
+    window.currentQuestions.forEach((q, i) => {
+        html += `<div class="q-nav-card ${i === window.editingQuestionIndex ? 'active' : ''}" 
+                      onclick="window.editingQuestionIndex = ${i}; window.renderQuestionsForm();">
+                      ${i + 1}
+                 </div>`;
+    });
+    html += `</div>`;
+
+    // 2. Vẽ Form chỉnh sửa nếu có câu được chọn
+    if (window.editingQuestionIndex >= 0 && window.editingQuestionIndex < window.currentQuestions.length) {
+        const index = window.editingQuestionIndex;
+        const q = window.currentQuestions[index];
+        
+        html += `<div class="question-card" style="animation: fadeIn 0.3s;">
+            <div class="question-header">
+                <h4>Đang sửa Câu ${index + 1}</h4>
+                <button type="button" class="action-btn btn-delete" onclick="window.currentQuestions.splice(${index}, 1); window.editingQuestionIndex = -1; window.renderQuestionsForm();" style="padding: 5px 12px; font-size: 0.85rem;">🗑️ Xóa câu này</button>
+            </div>
+            
+            <div class="quiz-input-group" style="margin-bottom:20px;">
+                <label>Nội dung câu hỏi:</label>
+                <input type="text" placeholder="Nhập câu hỏi tại đây..." value="${q.text}" 
+                    oninput="window.currentQuestions[${index}].text = this.value">
+            </div>`;
+        
+        if (q.type === 'abcd') {
+            html += `<div class="answers-grid">`;
+            q.options.forEach((opt, oIndex) => {
+                html += `<div class="opt-row">
+                    <span>${String.fromCharCode(65 + oIndex)}</span>
+                    <input type="text" placeholder="Nhập đáp án..." value="${opt}" 
+                        oninput="window.currentQuestions[${index}].options[${oIndex}] = this.value; 
+                        if(document.getElementById('corr_${index}').selectedIndex === ${oIndex}) window.currentQuestions[${index}].correctAnswer = this.value;">
+                </div>`;
+            });
+            html += `</div>
+            <div class="quiz-input-group" style="background:#f0f8ff; padding:15px; border-radius:8px;">
+                <label>✅ Chỉ định đáp án đúng:</label>
+                <select id="corr_${index}" onchange="window.currentQuestions[${index}].correctAnswer = window.currentQuestions[${index}].options[this.value]">
+                    ${q.options.map((_, i) => `<option value="${i}" ${q.correctAnswer === q.options[i] ? 'selected' : ''}>Đáp án ${String.fromCharCode(65 + i)}</option>`).join('')}
+                </select>
+            </div>`;
+        } else {
+            html += `<div class="quiz-input-group" style="background:#f0f8ff; padding:15px; border-radius:8px;">
+                <label>✅ Chỉ định đáp án đúng:</label>
+                <select onchange="window.currentQuestions[${index}].correctAnswer = this.value">
+                    <option value="Đúng" ${q.correctAnswer === 'Đúng' ? 'selected' : ''}>Mệnh đề ĐÚNG</option>
+                    <option value="Sai" ${q.correctAnswer === 'Sai' ? 'selected' : ''}>Mệnh đề SAI</option>
+                </select>
+            </div>`;
+        }
+        html += `</div>`;
+    } else if (window.currentQuestions.length > 0) {
+        html += `<div style="text-align:center; padding: 20px; color: #95a5a6;">👆 Bấm vào một số bên trên để chỉnh sửa câu hỏi.</div>`;
+    }
+    
+    container.innerHTML = html;
+};
+
+// Cập nhật sự kiện nút Thêm câu hỏi để tự động nhảy vào sửa câu vừa thêm
+document.getElementById('addAbcd').onclick = () => {
+    window.currentQuestions.push({ type: 'abcd', text: '', options: ['', '', '', ''], correctAnswer: '' });
+    window.editingQuestionIndex = window.currentQuestions.length - 1; // Nhảy đến câu cuối
+    window.renderQuestionsForm();
+};
+
+document.getElementById('addTf').onclick = () => {
+    window.currentQuestions.push({ type: 'tf', text: '', options: ['Đúng', 'Sai'], correctAnswer: 'Đúng' });
+    window.editingQuestionIndex = window.currentQuestions.length - 1;
+    window.renderQuestionsForm();
+};
+
+// ==========================================
+// 3. CÁC HÀM XỬ LÝ DỮ LIỆU (LOAD, SỬA, XÓA)
+// ==========================================
+
+// Load danh sách Quiz ra bảng Admin
+window.loadAdminQuizzes = async function() {
+    const list = document.getElementById('quiz-list-admin');
+    if(!list) return;
+    list.innerHTML = '⏳ Đang tải danh sách...';
+    
+    try {
+        const q = query(collection(db, "quizzes"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        list.innerHTML = '';
+
+        if (snap.empty) {
+            list.innerHTML = '<p>Chưa có bài Quiz nào.</p>';
+            return;
+        }
+
+        snap.forEach(docSnap => {
+            const d = docSnap.data();
+            const div = document.createElement('div');
+            div.style = "padding:15px; border:1px solid #eee; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; border-radius:8px;";
+            div.innerHTML = `
+                <div>
+                    <strong style="font-size: 1.1rem; color: var(--color-primary);">${d.title}</strong><br>
+                    <small style="color: #555;">🪙 Thưởng: ${d.tokenReward} Token | ⏰ Thời gian: ${d.timeLimit || 15} phút | 📝 ${d.questions ? d.questions.length : 0} câu</small>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="action-btn btn-view" onclick="window.editQuiz('${docSnap.id}')">✏️ Sửa</button>
+                    <button class="action-btn btn-delete" onclick="window.deleteQuiz('${docSnap.id}')">🗑️ Xóa</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    } catch (err) {
+        console.error(err);
+        list.innerHTML = '❌ Lỗi khi tải danh sách.';
+    }
+};
+
+// Mở Form chỉnh sửa bài Quiz
+window.editQuiz = async function(id) {
+    showToast("Đang tải dữ liệu bài Quiz...", "info");
+    try {
+        const docSnap = await getDoc(doc(db, "quizzes", id));
+        if (!docSnap.exists()) {
+            showToast("Không tìm thấy bài Quiz!", "error");
+            return;
+        }
+        
+        const data = docSnap.data();
+        window.editingQuizId = id; // Đánh dấu đang sửa bài này
+        
+        document.getElementById('quizFormTitle').innerText = "✏️ Chỉnh sửa bài Quiz";
+        document.getElementById('quizFormContainer').style.display = 'block';
+        
+        // Đổ dữ liệu cũ vào form
+        document.getElementById('qTitle').value = data.title || '';
+        document.getElementById('qReward').value = data.tokenReward || 0;
+        
+        const timeInput = document.getElementById('qTime');
+        if(timeInput) timeInput.value = data.timeLimit || 15;
+        
+        const antiCheatInput = document.getElementById('qAntiCheat');
+        if(antiCheatInput) antiCheatInput.checked = data.antiCheat || false;
+        
+        // Đổ dữ liệu câu hỏi vào mảng Global và vẽ lại
+        window.currentQuestions = data.questions || [];
+        window.renderQuestionsForm();
+        
+    } catch (err) {
+        showToast("Lỗi khi tải bài Quiz: " + err.message, "error");
+    }
+};
+
+// Xóa bài Quiz
+window.deleteQuiz = async function(id) {
+    if(!confirm("Bạn có chắc chắn muốn xóa vĩnh viễn bài Quiz này không?")) return;
+    try {
+        await deleteDoc(doc(db, "quizzes", id));
+        showToast("Đã xóa bài Quiz thành công!", "success");
+        window.loadAdminQuizzes();
+    } catch (err) {
+        showToast("Lỗi khi xóa: " + err.message, "error");
+    }
+};
+
+// ==========================================
+// 4. GẮN SỰ KIỆN CHO CÁC NÚT BẤM
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Nút: Mở form tạo Quiz mới
+    const btnCreateQuiz = document.getElementById('btnCreateQuiz');
+    if (btnCreateQuiz) {
+        btnCreateQuiz.onclick = () => {
+            window.editingQuizId = null; // Reset ID (Báo hiệu đây là tạo mới)
+            document.getElementById('quizFormTitle').innerText = "➕ Tạo Quiz Mới";
+            document.getElementById('quizFormContainer').style.display = 'block';
+            
+            // Reset các trường nhập liệu
+            document.getElementById('qTitle').value = '';
+            document.getElementById('qReward').value = '';
+            if(document.getElementById('qTime')) document.getElementById('qTime').value = '15';
+            if(document.getElementById('qAntiCheat')) document.getElementById('qAntiCheat').checked = false;
+            
+            window.currentQuestions = [];
+            window.renderQuestionsForm();
+        };
+    }
+
+    // Nút: Hủy / Đóng form
+    const btnCancelQuiz = document.getElementById('cancelQuiz');
+    if (btnCancelQuiz) {
+        btnCancelQuiz.onclick = () => {
+            document.getElementById('quizFormContainer').style.display = 'none';
+            window.editingQuizId = null;
+            window.currentQuestions = [];
+        };
+    }
+
+    // Nút: Thêm câu hỏi Trắc nghiệm ABCD
+    const btnAddAbcd = document.getElementById('addAbcd');
+    if (btnAddAbcd) {
+        btnAddAbcd.onclick = () => {
+            window.currentQuestions.push({ 
+                type: 'abcd', 
+                text: '', 
+                options: ['', '', '', ''], 
+                correctAnswer: '' 
+            });
+            window.renderQuestionsForm();
+        };
+    }
+
+    // Nút: Thêm câu hỏi Đúng/Sai
+    const btnAddTf = document.getElementById('addTf');
+    if (btnAddTf) {
+        btnAddTf.onclick = () => {
+            window.currentQuestions.push({ 
+                type: 'tf', 
+                text: '', 
+                options: ['Đúng', 'Sai'], 
+                correctAnswer: 'Đúng' 
+            });
+            window.renderQuestionsForm();
+        };
+    }
+
+    // Nút: LƯU BÀI QUIZ (Lưu mới hoặc Cập nhật)
+    const btnSaveQuiz = document.getElementById('saveQuiz');
+    if (btnSaveQuiz) {
+        btnSaveQuiz.onclick = async () => {
+            const title = document.getElementById('qTitle').value.trim();
+            const reward = parseInt(document.getElementById('qReward').value);
+            
+            const timeInput = document.getElementById('qTime');
+            const time = timeInput ? parseInt(timeInput.value) : 15;
+            
+            const antiCheatInput = document.getElementById('qAntiCheat');
+            const antiCheat = antiCheatInput ? antiCheatInput.checked : false;
+
+            // Kiểm tra tính hợp lệ
+            if (!title || isNaN(reward) || window.currentQuestions.length === 0) {
+                showToast("Vui lòng nhập đủ Tiêu đề, Điểm thưởng và ít nhất 1 câu hỏi!", "error");
+                return;
+            }
+
+            const quizData = {
+                title,
+                tokenReward: reward,
+                timeLimit: time,
+                antiCheat,
+                attemptsLimit: parseInt(document.getElementById('qLimit').value) || 1,
+                questions: window.currentQuestions,
+                updatedAt: new Date()
+            };
+
+            try {
+                if (window.editingQuizId) {
+                    // Chế độ CẬP NHẬT bài cũ
+                    await updateDoc(doc(db, "quizzes", window.editingQuizId), quizData);
+                    showToast("Cập nhật bài Quiz thành công! ✅", "success");
+                } else {
+                    // Chế độ TẠO MỚI
+                    quizData.createdAt = new Date();
+                    await addDoc(collection(db, "quizzes"), quizData);
+                    showToast("Tạo bài Quiz mới thành công! 🎉", "success");
+                }
+                
+                window.editingQuizId = null;
+                document.getElementById('quizFormContainer').style.display = 'none';
+                window.loadAdminQuizzes();
+                
+            } catch (err) {
+                showToast("Lỗi khi lưu: " + err.message, "error");
+            }
+        };
+    }
+
+    // Gọi lần đầu tiên khi tải trang
+    window.loadAdminQuizzes();
+});
+
+
+// Quản lý Level
+const levelsCol = collection(db, "levels");
+
+document.getElementById('saveLevel').onclick = async () => {
+    const name = document.getElementById('lvName').value;
+    const threshold = parseInt(document.getElementById('lvThreshold').value);
+    const color = document.getElementById('lvColor').value;
+
+    if (!name || isNaN(threshold)) return showToast("Vui lòng nhập đủ tên và mốc token!", "error");
+
+    try {
+        // Dùng threshold làm ID để dễ sắp xếp và ghi đè nếu trùng mốc
+        await setDoc(doc(db, "levels", threshold.toString()), {
+            name, threshold, color
+        });
+        showToast("Đã lưu cấp độ!");
+        loadAdminLevels();
+    } catch (e) { showToast("Lỗi: " + e.message, "error"); }
+};
+
+async function loadAdminLevels() {
+    const list = document.getElementById('levels-list-admin');
+    const q = query(levelsCol, orderBy("threshold", "asc"));
+    const snap = await getDocs(q);
+    list.innerHTML = '';
+    snap.forEach(docSnap => {
+        const d = docSnap.data();
+        list.innerHTML += `
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center; border-left: 5px solid ${d.color}">
+                <div><b>${d.name}</b> (Từ ${d.threshold} 🪙)</div>
+                <button class="action-btn btn-delete" onclick="deleteLevel('${docSnap.id}')">Xóa</button>
+            </div>
+        `;
+    });
+}
+window.deleteLevel = async (id) => {
+    if(confirm("Xóa level này?")) { await deleteDoc(doc(db, "levels", id)); loadAdminLevels(); }
+};
+loadAdminLevels();
 </script>
 </body>
 </html>
