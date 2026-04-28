@@ -11,6 +11,8 @@ let quizQuestions = [];
 let isDataLoaded = false;
 let localTimerInterval = null;
 let timeLeft = 60;
+let quizTokenReward = 0;   // Phần thưởng base của bài quiz
+let tokenAwarded = false;  // Chống cộng token nhiều lần trong cùng session
 
 const roomRef = doc(db, "rooms", roomId);
 const playersRef = doc(db, `rooms/${roomId}/players_sub`, "list");
@@ -44,6 +46,7 @@ async function joinRoom() {
 
         if (quizDoc.exists()) {
             quizQuestions = quizDoc.data().questions || [];
+            quizTokenReward = quizDoc.data().tokenReward || 0; // Lưu phần thưởng base
             isDataLoaded = true;
         }
 
@@ -96,6 +99,7 @@ function handleRoomState(data) {
         renderQuestion(data.currentQuestion);
     } else if (data.status === 'finished') {
         document.getElementById('result-screen').style.display = 'flex';
+        awardTokens(); // Cộng token cho tất cả người chơi
         showFinalWinner();
     }
 }
@@ -274,10 +278,91 @@ function renderLeaderboard(playersObj) {
     });
 }
 
-function showFinalWinner() {
-    // Tìm người điểm cao nhất từ bảng xếp hạng hiện tại để hiện lên màn hình kết thúc
-    const players = document.querySelectorAll('.player-item');
-    if(players.length > 0) {
-        document.getElementById('winner-name').innerText = "Chúc mừng các bạn đã hoàn thành!";
+// 9. PHÂN PHÁT TOKEN KHI KẾT THÚC
+async function awardTokens() {
+    // Mỗi instance chỉ chạy một lần (chống snapshot gọi lại nhiều lần)
+    if (tokenAwarded) return;
+    tokenAwarded = true;
+
+    try {
+        const playersSnap = await getDoc(playersRef);
+        if (!playersSnap.exists()) return;
+
+        const players = playersSnap.data();
+        const uids = Object.keys(players);
+        if (uids.length === 0 || quizTokenReward <= 0) return;
+
+        // Tìm người có điểm cao nhất
+        let maxScore = -1;
+        uids.forEach(uid => {
+            if (players[uid].score > maxScore) maxScore = players[uid].score;
+        });
+
+        const participationToken = Math.round(quizTokenReward * 0.5);  // 50% cho tất cả
+        const winnerBonusToken = Math.round(quizTokenReward * 1.5);    // 150% cho người thắng
+
+        // Cộng token cho từng người chơi
+        const promises = uids.map(async (uid) => {
+            const userRef = doc(db, "users", uid);
+            const isWinner = maxScore > 0 && players[uid].score === maxScore;
+
+            if (isWinner) {
+                // Người thắng: nhận 150% (đã bao gồm phần tham gia)
+                await updateDoc(userRef, { tokens: increment(winnerBonusToken) });
+                // Ghi nhớ token nhận được vào players_sub để hiển thị
+                await updateDoc(playersRef, { [`${uid}.tokensEarned`]: winnerBonusToken, [`${uid}.isWinner`]: true });
+            } else {
+                // Người còn lại: nhận 50%
+                await updateDoc(userRef, { tokens: increment(participationToken) });
+                await updateDoc(playersRef, { [`${uid}.tokensEarned`]: participationToken, [`${uid}.isWinner`]: false });
+            }
+        });
+
+        await Promise.all(promises);
+    } catch (err) {
+        console.error("Lỗi cộng token:", err);
     }
+}
+
+function showFinalWinner() {
+    // Lấy snapshot players để hiển thị kết quả token
+    const unsubscribe = onSnapshot(playersRef, (docSnap) => {
+        if (!docSnap.exists()) return;
+        const players = docSnap.data();
+
+        // Kiểm tra đã có dữ liệu tokensEarned chưa (awardTokens chạy xong)
+        const allAwarded = Object.values(players).every(p => p.tokensEarned !== undefined);
+        if (!allAwarded) return;
+
+        unsubscribe(); // Dừng lắng nghe sau khi đã có đủ dữ liệu
+
+        // Tìm người thắng (điểm cao nhất)
+        const sorted = Object.entries(players).sort((a, b) => b[1].score - a[1].score);
+        const [winnerUid, winnerData] = sorted[0];
+
+        // Hiển thị người thắng
+        const winnerEl = document.getElementById('winner-name');
+        if (winnerData.score > 0) {
+            const crown = winnerUid === currentUser.uid ? " 👑 Đó là bạn!" : "";
+            winnerEl.innerText = `🏆 ${winnerData.name} dẫn đầu với ${winnerData.score} điểm!${crown}`;
+        } else {
+            winnerEl.innerText = "Chúc mừng các bạn đã hoàn thành!";
+        }
+
+        // Hiển thị token của người chơi hiện tại
+        const myData = players[currentUser.uid];
+        if (myData && myData.tokensEarned !== undefined) {
+            const tokenEl = document.getElementById('winner-name');
+            const myTokenMsg = document.createElement('div');
+            myTokenMsg.style = "margin-top: 12px; font-size: 1.1rem; color: #f39c12;";
+
+            if (myData.isWinner) {
+                myTokenMsg.innerHTML = `🥇 Bạn thắng! Nhận <b>+${myData.tokensEarned} 🪙</b> (150% phần thưởng)`;
+            } else {
+                myTokenMsg.innerHTML = `🎖️ Tham gia hoàn thành! Nhận <b>+${myData.tokensEarned} 🪙</b> (50% phần thưởng)`;
+            }
+
+            tokenEl.parentNode.insertBefore(myTokenMsg, tokenEl.nextSibling);
+        }
+    });
 }
