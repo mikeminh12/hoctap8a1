@@ -13,6 +13,7 @@ let localTimerInterval = null;
 let timeLeft = 60;
 let quizTokenReward = 0;   // Phần thưởng base của bài quiz
 let tokenAwarded = false;  // Chống cộng token nhiều lần trong cùng session
+let lastRenderedIndex = -1;
 
 const roomRef = doc(db, "rooms", roomId);
 const playersRef = doc(db, `rooms/${roomId}/players_sub`, "list");
@@ -87,8 +88,6 @@ function handleRoomState(data) {
     const screens = ['waiting-screen', 'countdown-screen', 'question-screen', 'result-screen'];
     screens.forEach(s => document.getElementById(s).style.display = 'none');
 
-    document.getElementById('question-progress').innerText = `Tiến độ: ${data.currentQuestion + 1}/${quizQuestions.length}`;
-
     if (data.status === 'waiting') {
         document.getElementById('waiting-screen').style.display = 'flex';
     } else if (data.status === 'countdown') {
@@ -104,41 +103,106 @@ function handleRoomState(data) {
     }
 }
 
+// Lưu ý: Nhớ đảm bảo bạn đã khai báo biến này ở đầu file quiz-solo.js
+// let lastRenderedIndex = -1;
+
 // 5. HIỂN THỊ CÂU HỎI
 function renderQuestion(index) {
     if (!isDataLoaded || !quizQuestions[index]) return;
     const q = quizQuestions[index];
 
-    const qTextEl = document.getElementById('q-text');
-    qTextEl.innerText = `Câu ${index + 1}: ${q.text}`;
-    qTextEl.style.color = "#2c3e50";
+    // ---------------------------------------------------------
+    // PHẦN 1: CHỈ CHẠY KHI CHUYỂN SANG CÂU HỎI MỚI (VẼ GIAO DIỆN)
+    // ---------------------------------------------------------
+    if (lastRenderedIndex !== index) {
+        lastRenderedIndex = index; // Cập nhật lại vết câu hỏi hiện tại
 
-    const optsContainer = document.getElementById('options-container');
-    optsContainer.innerHTML = '';
-    document.getElementById('answer-feedback').innerHTML = ''; // Clear feedback
+        // --- 1.1 CẬP NHẬT THANH TIẾN TRÌNH ---
+        const totalQuestions = quizQuestions.length;
+        const currentQ = index + 1;
+        
+        const progressText = document.getElementById('progress-text');
+        const progressFill = document.getElementById('progress-fill');
+        
+        if (progressText && progressFill) {
+            progressText.innerHTML = `<span>Tiến trình</span> <span>${currentQ} / ${totalQuestions}</span>`;
+            // Tính toán phần trăm và kéo dài thanh tiến trình
+            const percent = (currentQ / totalQuestions) * 100;
+            progressFill.style.width = `${percent}%`;
+        }
 
-    q.options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        btn.innerText = opt;
-        btn.style.color = "#333";
-        btn.onclick = () => handleAnswer(opt, q.correctAnswer);
-        optsContainer.appendChild(btn);
-    });
+        // --- 1.2 ANIMATION TRƯỢT/FADE CÂU HỎI ---
+        const qScreen = document.getElementById('question-screen');
+        qScreen.classList.remove('fade-enter');
+        void qScreen.offsetWidth; // Kích hoạt reflow để reset CSS animation
+        qScreen.classList.add('fade-enter');
 
-    // Nếu đã có người thắng vòng này hoặc hết thời gian, khóa nút
-    if (roomData.winner || timeLeft <= 0) {
-        disableAllOptions();
-        showNextButton();
+        // --- 1.3 HIỂN THỊ NỘI DUNG CÂU HỎI ---
+        const qTextEl = document.getElementById('q-text');
+        qTextEl.innerText = `Câu ${index + 1}: ${q.text}`;
+        qTextEl.style.color = "#2c3e50";
+
+        // --- 1.4 HIỂN THỊ CÁC ĐÁP ÁN (KÈM PHÍM TẮT) ---
+        const optsContainer = document.getElementById('options-container');
+        optsContainer.innerHTML = ''; // Xóa các nút cũ
+        document.getElementById('answer-feedback').innerHTML = ''; // Xóa thông báo cũ
+
+        q.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            
+            // Lưu giá trị gốc vào dataset để dễ dàng so sánh và bôi màu đúng/sai sau này
+            btn.dataset.option = opt; 
+            
+            // Thêm nút gợi ý phím tắt (1, 2, 3, 4) vào HTML của nút
+            btn.innerHTML = `<span class="key-hint">${idx + 1}</span> ${opt}`;
+            
+            // Lắng nghe sự kiện click
+            btn.onclick = () => handleAnswer(opt, q.correctAnswer);
+            optsContainer.appendChild(btn);
+        });
+
+        // Bắt đầu đếm ngược thời gian cho câu hỏi mới
+        startQuestionTimer();
     }
 
-    startQuestionTimer();
+    // ---------------------------------------------------------
+    // PHẦN 2: CHẠY LIÊN TỤC KHI CÓ CẬP NHẬT TỪ FIREBASE (ĐỒNG BỘ)
+    // ---------------------------------------------------------
+    // Nếu trong phòng đã có người thắng câu này (trả lời đúng) HOẶC hết thời gian
+    if (roomData && (roomData.winner || timeLeft <= 0)) {
+        disableAllOptions(); // Khóa tất cả các nút
+        showNextButton();    // Hiện nút "Tiếp theo (Space)"
+        
+        // Tìm và tự động bôi xanh đáp án đúng cho mọi người cùng thấy
+        const buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(btn => {
+            if (btn.dataset.option === q.correctAnswer) {
+                btn.classList.add('correct');
+            }
+        });
+    }
 }
 
 // 6. XỬ LÝ KHI BẤM ĐÁP ÁN
 async function handleAnswer(selected, correct) {
     disableAllOptions();
 
+    // --- CẬP NHẬT GIAO DIỆN (ĐỔI MÀU ĐÚNG/SAI) ---
+    const buttons = document.querySelectorAll('.option-btn');
+    buttons.forEach(btn => {
+        const optValue = btn.dataset.option;
+        if (optValue === correct) {
+            // Luôn bôi xanh đáp án đúng
+            btn.classList.add('correct'); 
+        } else if (optValue === selected) {
+            // Nếu đáp án đang xét không phải đáp án đúng mà lại là đáp án user đã chọn -> Bôi đỏ
+            btn.classList.add('wrong'); 
+        }
+    });
+    // ---------------------------------------------
+
+    // Xử lý điểm số trên Firebase
     if (selected === correct) {
         const roomSnap = await getDoc(roomRef);
         if (roomSnap.data().winner === null) {
@@ -165,12 +229,14 @@ function showNextButton() {
     const btn = document.createElement('button');
     btn.id = 'btn-next-question';
     btn.className = 'btn';
-    btn.style = "background: #3498db; color: white; margin-top: 20px; padding: 10px 25px;";
-    btn.innerText = "Tiếp theo ➔";
+    btn.style = "background: #3498db; color: white; margin-top: 20px; padding: 10px 25px; display: inline-flex; align-items: center; justify-content: center; gap: 10px;";
+    
+    // Thêm gợi ý phím Space
+    btn.innerHTML = `Tiếp theo ➔ <span class="key-hint" style="margin: 0;">Space</span>`;
     
     btn.onclick = async () => {
         btn.disabled = true;
-        btn.innerText = "Chờ mọi người...";
+        btn.innerHTML = "Chờ mọi người...";
         await updateDoc(playersRef, { [`${currentUser.uid}.wantsNext`]: true });
     };
     feedback.appendChild(btn);
@@ -366,3 +432,28 @@ function showFinalWinner() {
         }
     });
 }
+// --- LẮNG NGHE PHÍM TẮT (KEYBOARD SHORTCUTS) ---
+document.addEventListener('keydown', (e) => {
+    // Chỉ kích hoạt khi đang ở màn hình chơi
+    if (roomData?.status !== 'playing') return;
+
+    const options = document.querySelectorAll('.option-btn');
+    const nextBtn = document.getElementById('btn-next-question');
+
+    // Xử lý phím 1, 2, 3, 4 (chọn đáp án)
+    if (['1', '2', '3', '4'].includes(e.key)) {
+        const index = parseInt(e.key) - 1;
+        // Kiểm tra xem nút có tồn tại và chưa bị disable hay không
+        if (options[index] && !options[index].disabled) {
+            options[index].click();
+        }
+    }
+
+    // Xử lý phím Space (bấm nút Tiếp theo)
+    if (e.code === 'Space') {
+        if (nextBtn && !nextBtn.disabled) {
+            e.preventDefault(); // Ngăn chặn hành vi cuộn trang mặc định của phím Space
+            nextBtn.click();
+        }
+    }
+});

@@ -1444,3 +1444,36 @@ input, textarea, select, button { font-family: inherit; }
     border-radius: 8px;
     border: 1px solid #fdebd0;
 }
+/* Hiệu ứng chuyển cảnh câu hỏi */
+.fade-enter {
+    animation: fadeInSlide 0.4s ease-out forwards;
+}
+
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Định dạng cho dấu hiệu phím tắt (1, 2, 3, 4, Space) */
+.key-hint {
+    display: inline-block;
+    background: #e2e8f0;
+    color: #475569;
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-right: 12px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 2px 0 #cbd5e1;
+}
+.option-btn.correct { 
+    background: #d4edda !important; 
+    border-color: #28a745 !important; 
+    color: #155724 !important; 
+}
+.option-btn.wrong { 
+    background: #f8d7da !important; 
+    border-color: #dc3545 !important; 
+    color: #721c24 !important; 
+}
