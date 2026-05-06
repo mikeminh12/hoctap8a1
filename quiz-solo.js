@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, increment, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room');
@@ -543,3 +543,92 @@ window.sendInvite = async function(targetUid) {
     });
     showToast("Đã gửi lời mời!", "success");
 };
+// ================= TÌM KIẾM VÀ MỜI NGƯỜI CHƠI =================
+window.searchUsers = async function() {
+    const keyword = document.getElementById('searchUser').value.trim();
+    const userListEl = document.getElementById('userList');
+    
+    // Yêu cầu nhập ít nhất 2 ký tự mới bắt đầu tìm kiếm
+    if (keyword.length < 2) {
+        userListEl.innerHTML = '';
+        return;
+    }
+
+    try {
+        // Tìm kiếm theo trường "username" đã lưu trong DB
+        const q = query(
+            collection(db, "users"), 
+            where("username", ">=", keyword), 
+            where("username", "<=", keyword + "\uf8ff")
+        );
+        
+        const snap = await getDocs(q);
+        let html = '';
+        
+        snap.forEach(docSnap => {
+            const u = docSnap.data();
+            // Không hiển thị chính bản thân mình
+            if (docSnap.id !== currentUser.uid) { 
+                const display = u.username || u.displayName || 'Ẩn danh';
+                const avatar = u.photoURL || 'non.png';
+                
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: white; border: 1px solid #ecf0f1; border-radius: 8px; margin-bottom: 8px; transition: 0.2s;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <img src="${avatar}" style="width: 38px; height: 38px; border-radius: 50%; border: 2px solid #ecf0f1; object-fit: cover;">
+                            <span style="font-weight: bold; color: #2c3e50; font-size: 1.05rem;">${display}</span>
+                        </div>
+                        <button onclick="sendInvite('${docSnap.id}', '${display}')" style="padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);">Thách đấu ⚔️</button>
+                    </div>
+                `;
+            }
+        });
+        
+        if (html === '') {
+            html = '<div style="color: #7f8c8d; padding: 15px; text-align: center; background: white; border-radius: 8px; border: 1px dashed #bdc3c7;">Không tìm thấy người chơi nào!</div>';
+        }
+        userListEl.innerHTML = html;
+    } catch (error) {
+        console.error("Lỗi tìm kiếm:", error);
+    }
+};
+
+// Hàm gửi lời mời
+window.sendInvite = async function(targetUid, targetName) {
+    try {
+        // Lấy tên chính xác của người gửi để người nhận biết ai mời
+        let senderName = currentUser.displayName;
+        const senderSnap = await getDoc(doc(db, "users", currentUser.uid));
+        if (senderSnap.exists()) {
+            senderName = senderSnap.data().username || senderName;
+        }
+        if (!senderName) senderName = currentUser.email.split('@')[0];
+
+        // Thêm dữ liệu lời mời vào collection "invites"
+        await addDoc(collection(db, "invites"), {
+            fromUid: currentUser.uid,
+            fromName: senderName,
+            toUid: targetUid,
+            roomId: roomId,
+            status: 'pending',
+            timestamp: serverTimestamp()
+        });
+        
+        // Hiện thông báo thành công
+        alert(`✅ Đã gửi lời mời thách đấu đến [ ${targetName} ] thành công!`);
+        
+        // Reset giao diện tìm kiếm sau khi gửi
+        document.getElementById('searchUser').value = '';
+        document.getElementById('userList').innerHTML = '';
+        
+    } catch (err) {
+        console.error("Lỗi gửi lời mời:", err);
+        alert("❌ Có lỗi xảy ra khi gửi lời mời. Vui lòng thử lại!");
+    }
+};
+
+// Đổ ID phòng ra màn hình cho dễ nhìn
+document.addEventListener('DOMContentLoaded', () => {
+    const displayRoomId = document.getElementById('display-room-id');
+    if(displayRoomId && roomId) displayRoomId.innerText = roomId;
+});

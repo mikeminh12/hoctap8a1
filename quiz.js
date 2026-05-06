@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, query, orderBy, limit, setDoc, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, query, orderBy, limit, setDoc, where, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // --- Hàm hiển thị thông báo Toast ---
 function showToast(message, type = 'success') {
@@ -27,7 +27,7 @@ onAuthStateChanged(auth, async (user) => {
     
     // Gán user hiện tại
     currentUser = user;
-
+    listenForInvites();
     const inviteQuery = query(
         collection(db, "invites"), 
         where("toUid", "==", currentUser.uid), 
@@ -349,34 +349,105 @@ window.joinRoomByCode = function() {
     }
 };
 
-function showPersistentInviteToast(inviteId, fromName, roomId){
+// ================= LẮNG NGHE LỜI MỜI THÁCH ĐẤU =================
+function listenForInvites() {
+    if (!currentUser) return;
+    
+    // Tìm các lời mời gửi đến mình và đang ở trạng thái chờ (pending)
+    const q = query(
+        collection(db, "invites"), 
+        where("toUid", "==", currentUser.uid), 
+        where("status", "==", "pending")
+    );
+
+    onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            // Nếu có lời mời mới được thêm vào DB
+            if (change.type === "added") {
+                const inviteData = change.doc.data();
+                const inviteId = change.doc.id;
+                showInviteToast(inviteId, inviteData.fromName, inviteData.roomId);
+            }
+        });
+    });
+}
+
+// ================= TOAST LỜI MỜI (KHÔNG TỰ ĐỘNG TẮT) =================
+function showInviteToast(inviteId, fromName, roomId) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    // Chống hiển thị trùng lặp nếu Toast đã tồn tại
+    if (document.getElementById(`invite-toast-${inviteId}`)) return;
+
     const toast = document.createElement('div');
-    toast.className = `toast info persistent-toast`;
-    toast.style.cssText = "background: #fff; border-left: 4px solid #f39c12; color: #333; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px;";
+    toast.id = `invite-toast-${inviteId}`;
+    toast.className = `toast info`; // Dùng class có sẵn của bạn để lấy hiệu ứng trượt
+    
+    // CSS riêng cho thẻ Toast thách đấu
+    toast.style.cssText = `
+        background: #fff; 
+        border-left: 5px solid #e67e22; 
+        color: #2c3e50; 
+        padding: 20px; 
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2); 
+        display: flex; 
+        flex-direction: column; 
+        gap: 15px; 
+        min-width: 300px; 
+        border-radius: 10px;
+        pointer-events: auto;
+    `;
     
     toast.innerHTML = `
-        <div style="font-weight: bold;">⚔️ Thách đấu từ ${fromName}!</div>
-        <div style="display: flex; gap: 10px;">
-            <button id="acceptBtn_${inviteId}" style="background: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Chấp nhận</button>
-            <button id="declineBtn_${inviteId}" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Từ chối</button>
+        <div style="font-weight: 900; font-size: 1.2rem; color: #d35400; display: flex; align-items: center; gap: 8px;">
+            ⚔️ LỜI MỜI THÁCH ĐẤU!
+        </div>
+        <div style="font-size: 1rem; line-height: 1.4;">
+            Người chơi <b style="color: #3498db; font-size: 1.1rem;">${fromName}</b> vừa gửi lời mời bạn tham gia phòng đấu Solo.
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <button id="acceptBtn_${inviteId}" style="flex: 1; background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.2s;">✅ Chấp nhận</button>
+            <button id="declineBtn_${inviteId}" style="flex: 1; background: #e74c3c; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: 0.2s;">❌ Từ chối</button>
         </div>
     `;
+    
     container.appendChild(toast);
 
-    // Kích hoạt animation hiện ra
-    setTimeout(() => toast.classList.add('show'), 10);
+    // Kích hoạt hiệu ứng bay vào
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
 
-    // Xử lý Chấp nhận
+    // --- XỬ LÝ KHI BẤM CHẤP NHẬN ---
     document.getElementById(`acceptBtn_${inviteId}`).onclick = async () => {
-        await updateDoc(doc(db, "invites", inviteId), { status: 'accepted' });
-        window.location.href = `quiz-solo.html?room=${roomId}`; // Chuyển thẳng vào phòng
+        try {
+            // 1. Đổi trạng thái lời mời thành "accepted"
+            await updateDoc(doc(db, "invites", inviteId), { status: 'accepted' });
+            
+            // 2. Tắt toast
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400);
+            
+            // 3. Chuyển hướng ngay lập tức đến phòng Solo đó
+            window.location.href = `quiz-solo.html?room=${roomId}`;
+        } catch (err) {
+            console.error("Lỗi khi chấp nhận:", err);
+            alert("Có lỗi xảy ra khi vào phòng!");
+        }
     };
 
-    // Xử lý Từ chối
+    // --- XỬ LÝ KHI BẤM TỪ CHỐI ---
     document.getElementById(`declineBtn_${inviteId}`).onclick = async () => {
-        await updateDoc(doc(db, "invites", inviteId), { status: 'declined' });
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
+        try {
+            // 1. Đổi trạng thái thành "declined"
+            await updateDoc(doc(db, "invites", inviteId), { status: 'declined' });
+            
+            // 2. Đóng toast đi là xong (Không chuyển hướng)
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400);
+        } catch (err) {
+            console.error("Lỗi khi từ chối:", err);
+        }
     };
 }

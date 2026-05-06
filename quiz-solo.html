@@ -102,15 +102,23 @@
         </aside>
 
         <main class="solo-main">
-            <div id="waiting-screen">
-                <h2>Đang trong phòng chờ...</h2>
-                <p>Chia sẻ link này cho bạn bè để cùng chơi!</p>
-                <div class="invite-section" style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px;">
-                <h3>Mời bạn bè</h3>
-                <input type="text" id="searchUser" placeholder="Tìm tên user..." onkeyup="searchUsers()">
-                <div id="userList" style="max-height: 150px; overflow-y: auto; margin-top: 10px;"></div>
+<div id="waiting-screen">
+                <h2 style="color: #2c3e50;">Phòng Chờ Đấu Trí</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Mã phòng của bạn: <b style="color: #e74c3c; font-size: 1.2rem;" id="display-room-id">---</b></p>
+                
+                <div class="invite-box" style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 10px; border: 1px solid #e0e6ed; text-align: left;">
+                    <h3 style="margin-top: 0; color: #2c3e50; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                        🤝 Mời bạn bè tham gia
+                    </h3>
+                    <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 15px;">Tìm kiếm Username để gửi lời mời trực tiếp đến đối thủ.</p>
+                    
+                    <input type="text" id="searchUser" placeholder="🔍 Nhập Username người cần mời..." onkeyup="searchUsers()" style="width: 100%; padding: 12px 15px; border-radius: 8px; border: 1px solid #bdc3c7; font-size: 1rem; box-sizing: border-box; transition: 0.3s; outline: none;">
+                    
+                    <div id="userList" style="max-height: 200px; overflow-y: auto; margin-top: 15px; border-radius: 8px;">
+                        </div>
                 </div>
-                <button id="btn-ready" class="btn" style="background:#2ecc71; color:white; padding: 15px 40px; font-size: 1.2rem; margin-top: 20px;">Sẵn Sàng</button>
+
+                <button id="btn-ready" class="btn" style="background:#2ecc71; color:white; padding: 15px 40px; font-size: 1.2rem; width: 100%; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; text-transform: uppercase;">✅ Sẵn Sàng Bắt Đầu</button>
             </div>
 
             <div id="countdown-screen" style="display: none;">
