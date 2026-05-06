@@ -509,3 +509,37 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+
+
+
+window.searchUsers = async function() {
+    const keyword = document.getElementById('searchUser').value.trim();
+    if(keyword.length < 2) return;
+
+    const q = query(collection(db, "users"), where("displayName", ">=", keyword), where("displayName", "<=", keyword + "\uf8ff"));
+    const snap = await getDocs(q);
+    
+    let html = '';
+    snap.forEach(doc => {
+        const u = doc.data();
+        if(doc.id !== currentUser.uid) { // Không tự mời chính mình
+            html += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>${u.displayName}</span>
+                <button onclick="sendInvite('${doc.id}')" class="btn">Mời</button>
+            </div>`;
+        }
+    });
+    document.getElementById('userList').innerHTML = html;
+};
+
+window.sendInvite = async function(targetUid) {
+    await addDoc(collection(db, "invites"), {
+        fromName: currentUser.displayName,
+        toUid: targetUid,
+        roomId: roomId,
+        status: 'pending',
+        timestamp: new Date()
+    });
+    showToast("Đã gửi lời mời!", "success");
+};

@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, query, orderBy, limit, setDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, query, orderBy, limit, setDoc, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // --- Hàm hiển thị thông báo Toast ---
 function showToast(message, type = 'success') {
@@ -24,7 +24,24 @@ onAuthStateChanged(auth, async (user) => {
         window.location.href = "login.html";
         return;
     }
+    
+    // Gán user hiện tại
     currentUser = user;
+
+    const inviteQuery = query(
+        collection(db, "invites"), 
+        where("toUid", "==", currentUser.uid), 
+        where("status", "==", "pending")
+    );
+
+    onSnapshot(inviteQuery, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added") {
+                const invite = change.doc.data();
+                showPersistentInviteToast(change.doc.id, invite.fromName, invite.roomId);
+            }
+        });
+    });
     
     // THỨ TỰ THỰC THI QUAN TRỌNG:
     await fetchLevels();         // 1. Tải mốc Level từ Admin trước
@@ -119,6 +136,7 @@ async function loadQuizzes() {
     list.innerHTML = '<div style="text-align:center; padding: 20px; color:#95a5a6;">⏳ Đang tải danh sách bài thi...</div>';
     
     try {
+        // Lấy danh sách quiz, sắp xếp mới nhất lên đầu
         const q = query(collection(db, "quizzes"), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
         list.innerHTML = '';
@@ -132,7 +150,7 @@ async function loadQuizzes() {
             const d = docSnap.data();
             const quizId = docSnap.id;
             
-            // Lấy lịch sử làm bài
+            // Lấy lịch sử làm bài của user hiện tại
             const historySnap = await getDoc(doc(db, `users/${currentUser.uid}/completed_quizzes`, quizId));
             const historyData = historySnap.exists() ? historySnap.data() : null;
             
@@ -143,7 +161,6 @@ async function loadQuizzes() {
             const div = document.createElement('div');
             div.className = 'quiz-card';
             div.style.borderLeft = attemptsDone > 0 ? "5px solid #2ecc71" : "5px solid #3498db";
-            // Thêm chút style để card nhìn gọn gàng hơn
             div.style.padding = "15px";
             div.style.marginBottom = "15px";
             div.style.background = "#fff";
@@ -153,16 +170,24 @@ async function loadQuizzes() {
             // Xây dựng khối HTML chứa các nút bấm
             let buttonsHTML = '';
             
+            // 1. Nút Xem lại (Chỉ hiện nếu đã làm ít nhất 1 lần)
             if (attemptsDone > 0) {
-                buttonsHTML += `<button class="action-btn btn-delete" style="background:#e0e6ed; color:#2c3e50; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer;" onclick="window.location.href='quizing.html?id=${quizId}&mode=review'">👁️ Xem lại</button>`;
+                buttonsHTML += `<button class="action-btn btn-delete" style="background:#e0e6ed; color:#2c3e50; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer; font-weight:bold; transition:0.2s;" onclick="window.location.href='quizing.html?id=${quizId}&mode=review'">👁️ Xem lại</button>`;
             }
             
+            // 2. Nút Bắt đầu / Làm tiếp (Chỉ hiện nếu còn lượt làm bài)
             if (canDoMore) {
-                buttonsHTML += `<button class="action-btn btn-view" style="background:#3498db; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer;" onclick="window.location.href='quizing.html?id=${quizId}'">▶️ ${attemptsDone > 0 ? 'Làm tiếp' : 'Bắt đầu'}</button>`;
+                buttonsHTML += `<button class="action-btn btn-view" style="background:#3498db; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer; font-weight:bold; transition:0.2s;" onclick="window.location.href='quizing.html?id=${quizId}'">▶️ ${attemptsDone > 0 ? 'Làm tiếp' : 'Bắt đầu'}</button>`;
             }
 
-            // Nút Chơi Solo được thêm vào đây
-            buttonsHTML += `<button class="action-btn" style="background:#e67e22; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer;" onclick="createSoloRoom('${quizId}')">⚔️ Chơi Solo</button>`;
+            // 3. Nút Ôn tập (Luôn hiện, làm không tính điểm/không trừ lượt)
+            buttonsHTML += `<button class="action-btn" style="background:#f39c12; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer; font-weight:bold; transition:0.2s;" onclick="window.location.href='practice.html?id=${quizId}'">🔄 Ôn Tập</button>`;
+
+            // 4. Nút Bảng Xếp Hạng (Luôn hiện)
+            buttonsHTML += `<button class="action-btn" style="background:#9b59b6; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer; font-weight:bold; transition:0.2s;" onclick="window.location.href='quiz-detail.html?id=${quizId}'">🏆 BXH</button>`;
+
+            // 5. Nút Chơi Solo (Luôn hiện)
+            buttonsHTML += `<button class="action-btn" style="background:#e74c3c; color:white; border:none; padding: 8px 12px; border-radius: 6px; cursor:pointer; font-weight:bold; transition:0.2s;" onclick="createSoloRoom('${quizId}')">⚔️ Solo</button>`;
 
             div.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 15px;">
@@ -172,7 +197,7 @@ async function loadQuizzes() {
                             🪙 Thưởng: <b style="color:#f39c12;">${d.tokenReward || 0}</b> | ⏰ ${d.timeLimit || 15}p | 🔄 Lượt: ${attemptsDone}/${limit}
                         </p>
                     </div>
-                    <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                    <div style="display:flex; gap:8px; flex-wrap: wrap;">
                         ${buttonsHTML}
                     </div>
                 </div>
@@ -315,3 +340,43 @@ window.moveLevelTooltip = function(e, el) {
         tooltip.style.top = y + 'px';
     }
 };
+window.joinRoomByCode = function() {
+    const code = document.getElementById('roomCodeInput').value.trim();
+    if(code) {
+        window.location.href = `quiz-solo.html?room=${code}`;
+    } else {
+        showToast("Vui lòng nhập mã phòng!", "error");
+    }
+};
+
+function showPersistentInviteToast(inviteId, fromName, roomId){
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast info persistent-toast`;
+    toast.style.cssText = "background: #fff; border-left: 4px solid #f39c12; color: #333; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 10px;";
+    
+    toast.innerHTML = `
+        <div style="font-weight: bold;">⚔️ Thách đấu từ ${fromName}!</div>
+        <div style="display: flex; gap: 10px;">
+            <button id="acceptBtn_${inviteId}" style="background: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Chấp nhận</button>
+            <button id="declineBtn_${inviteId}" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Từ chối</button>
+        </div>
+    `;
+    container.appendChild(toast);
+
+    // Kích hoạt animation hiện ra
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Xử lý Chấp nhận
+    document.getElementById(`acceptBtn_${inviteId}`).onclick = async () => {
+        await updateDoc(doc(db, "invites", inviteId), { status: 'accepted' });
+        window.location.href = `quiz-solo.html?room=${roomId}`; // Chuyển thẳng vào phòng
+    };
+
+    // Xử lý Từ chối
+    document.getElementById(`declineBtn_${inviteId}`).onclick = async () => {
+        await updateDoc(doc(db, "invites", inviteId), { status: 'declined' });
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    };
+}
