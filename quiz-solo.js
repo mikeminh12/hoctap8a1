@@ -18,6 +18,30 @@ let lastRenderedIndex = -1;
 const roomRef = doc(db, "rooms", roomId);
 const playersRef = doc(db, `rooms/${roomId}/players_sub`, "list");
 
+// --- HÀM HỖ TRỢ RANDOM ---
+// 1. Hàm tạo số ngẫu nhiên chung một Seed (dựa vào roomId) để đồng bộ thứ tự câu hỏi giữa các máy
+function getSeededRandom(seedStr) {
+    let h = 1779033703;
+    for(let i = 0; i < seedStr.length; i++) {
+        h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+    }
+    return function() {
+        h = Math.imul(h ^ (h >>> 16), 2246822507);
+        h = Math.imul(h ^ (h >>> 13), 3266489909);
+        return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    }
+}
+const roomRNG = getSeededRandom(roomId || "default_room");
+
+// 2. Hàm xáo trộn mảng (trả về mảng mới)
+function shuffleArray(array, rng = Math.random) {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+}
 // 1. KHỞI CHẠY & KIỂM TRA ĐĂNG NHẬP
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -46,7 +70,11 @@ async function joinRoom() {
         const quizDoc = await getDoc(doc(db, "quizzes", quizId));
 
         if (quizDoc.exists()) {
-            quizQuestions = quizDoc.data().questions || [];
+            // Lấy dữ liệu gốc
+            const rawQuestions = quizDoc.data().questions || [];
+            // Xáo trộn câu hỏi bằng roomRNG để đảm bảo mọi người trong phòng đều có thứ tự câu hỏi y hệt nhau
+            quizQuestions = shuffleArray(rawQuestions, roomRNG);
+            
             quizTokenReward = quizDoc.data().tokenReward || 0; // Lưu phần thưởng base
             isDataLoaded = true;
         }
@@ -147,17 +175,21 @@ function renderQuestion(index) {
         optsContainer.innerHTML = ''; // Xóa các nút cũ
         document.getElementById('answer-feedback').innerHTML = ''; // Xóa thông báo cũ
 
-        q.options.forEach((opt, idx) => {
+        // Xáo trộn ngẫu nhiên vị trí các đáp án trước khi render
+        const shuffledOptions = shuffleArray(q.options, Math.random);
+
+        shuffledOptions.forEach((opt, idx) => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
             
-            // Lưu giá trị gốc vào dataset để dễ dàng so sánh và bôi màu đúng/sai sau này
+            // LƯU Ý QUAN TRỌNG: Giá trị dataset và sự kiện click vẫn lưu nội dung gốc (opt)
+            // Nên dù vị trí nút đảo lộn, dữ liệu truyền đi vẫn cực kỳ chuẩn xác và so sánh đúng được với q.correctAnswer
             btn.dataset.option = opt; 
             
-            // Thêm nút gợi ý phím tắt (1, 2, 3, 4) vào HTML của nút
+            // Phím tắt (1, 2, 3, 4) được gán theo thứ tự hiển thị ngẫu nhiên mới
             btn.innerHTML = `<span class="key-hint">${idx + 1}</span> ${opt}`;
             
-            // Lắng nghe sự kiện click
+            // Lắng nghe sự kiện click: So sánh lựa chọn (opt) với đáp án chuẩn trong DB (q.correctAnswer)
             btn.onclick = () => handleAnswer(opt, q.correctAnswer);
             optsContainer.appendChild(btn);
         });
@@ -243,6 +275,8 @@ function showNextButton() {
 }
 
 // 8. KIỂM TRA ĐIỀU KIỆN CHUYỂN CÂU/BẮT ĐẦU
+let isProcessingNext = false; // Thêm biến khóa chống nhảy câu (skip câu)
+
 async function checkGlobalConditions(playersObj) {
     const uids = Object.keys(playersObj);
     if (uids.length === 0) return;
@@ -257,14 +291,32 @@ async function checkGlobalConditions(playersObj) {
     // B. Kiểm tra tất cả đã bấm "Tiếp theo"
     const allWantsNext = uids.every(id => playersObj[id].wantsNext);
     if (allWantsNext && roomData?.status === 'playing' && roomData.hostId === currentUser.uid) {
-        // Reset trạng thái wantsNext cho tất cả để sang câu mới
-        const resetData = {};
-        uids.forEach(id => {
-            resetData[`${id}.wantsNext`] = false;
-            resetData[`${id}.status`] = 'active';
-        });
-        await updateDoc(playersRef, resetData);
-        nextQuestion();
+        
+        // --- KHOÁ CHỐNG NHẢY CÂU ---
+        // Nếu đang trong quá trình chuyển câu rồi thì chặn lại, không cho chạy lần 2
+        if (isProcessingNext) return; 
+        isProcessingNext = true; // Đóng khóa
+        
+        try {
+            // Reset trạng thái wantsNext cho tất cả để sang câu mới
+            const resetData = {};
+            uids.forEach(id => {
+                resetData[`${id}.wantsNext`] = false;
+                resetData[`${id}.status`] = 'active';
+            });
+            await updateDoc(playersRef, resetData);
+            
+            // Gọi hàm chuyển câu (thêm await để đồng bộ)
+            await nextQuestion(); 
+            
+        } catch (error) {
+            console.error("Lỗi khi chuyển câu:", error);
+        } finally {
+            // Giữ khóa đóng trong 1 giây để an toàn bỏ qua các tín hiệu snapshot dư thừa từ Firebase
+            setTimeout(() => {
+                isProcessingNext = false; // Mở khóa lại cho câu tiếp theo
+            }, 3000);
+        }
     }
 }
 
@@ -409,7 +461,7 @@ function showFinalWinner() {
         // Hiển thị người thắng
         const winnerEl = document.getElementById('winner-name');
         if (winnerData.score > 0) {
-            const crown = winnerUid === currentUser.uid ? " 👑 Đó là bạn!" : "";
+            const crown = winnerUid === currentUser.uid ? " Người chiến thắng là bạn!" : "";
             winnerEl.innerText = `🏆 ${winnerData.name} dẫn đầu với ${winnerData.score} điểm!${crown}`;
         } else {
             winnerEl.innerText = "Chúc mừng các bạn đã hoàn thành!";
